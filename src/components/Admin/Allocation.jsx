@@ -330,7 +330,7 @@ export function Allocation() {
                             onClick={() => toggleExpand(c._id)}
                             style={{
                               borderBottom: isExpanded ? 'none' : '1px solid #252525',
-                              background: c.newCase ? 'rgba(52, 152, 219, 0.08)' : 'transparent',
+                              background: 'transparent',
                               cursor: 'pointer'
                             }}>
                             <td style={{ padding: '16px 16px', verticalAlign: 'top', color: '#7a94a5', fontSize: 13 }}>
@@ -390,10 +390,17 @@ export function Allocation() {
                             </td>
                           </tr>
                           {isExpanded && (
-                            <tr style={{ borderBottom: '1px solid #1d2d3b', background: '#131e2b' }}>
-                              <td colSpan="5" style={{ padding: '16px 24px' }}>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, padding: '12px 16px', background: '#182433', borderRadius: 8 }}>
-                                  <CaseAdditionalDetails caseData={c} />
+                            <tr style={{ background: 'rgba(0, 0, 0, 0.2)' }}>
+                              <td colSpan="5" style={{ padding: 0 }}>
+                                <div style={{ borderTop: '1px solid #222222', borderBottom: '1px solid #252525', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#8fa4b5', fontFamily: '"DM Mono", monospace' }}>
+                                      <Icon name="file" size={13} /> Additional Details
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px 20px' }}>
+                                      <CaseAdditionalDetails caseData={c} />
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
                             </tr>

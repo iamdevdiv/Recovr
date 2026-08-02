@@ -261,17 +261,17 @@ export function CaseAdditionalDetails({ caseData }) {
           const p = phones[i] || null
           if (n && n !== `Reference ${i + 1}`) {
             expandTagElements.push(
-              <div key={`RefName_${i}`} style={{ minWidth: 120 }}>
-                <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>Reference Name {i + 1}</small>
-                <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{n}</strong>
+              <div key={`RefName_${i}`} className="fos-detail-item">
+                <span className="fos-detail-label">Reference Name {i + 1}</span>
+                <strong className="fos-detail-val">{n}</strong>
               </div>
             )
           }
           if (p) {
             expandTagElements.push(
-              <div key={`RefPhone_${i}`} style={{ minWidth: 120 }}>
-                <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>{mobTag} {i + 1}</small>
-                <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{p}</strong>
+              <div key={`RefPhone_${i}`} className="fos-detail-item">
+                <span className="fos-detail-label">{mobTag} {i + 1}</span>
+                <strong className="fos-detail-val">{p}</strong>
               </div>
             )
           }
@@ -286,17 +286,17 @@ export function CaseAdditionalDetails({ caseData }) {
       for (let i = 0; i < maxLen; i++) {
         if (i < nameArr.length) {
           expandTagElements.push(
-            <div key={`RefName_${i}`} style={{ minWidth: 120 }}>
-              <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>{tag} {i + 1}</small>
-              <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{formatDetailValue(tag, nameArr[i])}</strong>
+            <div key={`RefName_${i}`} className="fos-detail-item">
+              <span className="fos-detail-label">{tag} {i + 1}</span>
+              <strong className="fos-detail-val">{formatDetailValue(tag, nameArr[i])}</strong>
             </div>
           )
         }
         if (i < mobArr.length) {
           expandTagElements.push(
-            <div key={`RefPhone_${i}`} style={{ minWidth: 120 }}>
-              <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>{mobTag || 'Reference Number'} {i + 1}</small>
-              <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{formatDetailValue(mobTag || 'Reference Number', mobArr[i])}</strong>
+            <div key={`RefPhone_${i}`} className="fos-detail-item">
+              <span className="fos-detail-label">{mobTag || 'Reference Number'} {i + 1}</span>
+              <strong className="fos-detail-val">{formatDetailValue(mobTag || 'Reference Number', mobArr[i])}</strong>
             </div>
           )
         }
@@ -307,9 +307,9 @@ export function CaseAdditionalDetails({ caseData }) {
     if (Array.isArray(rawVal)) {
       rawVal.forEach((v, i) => {
         expandTagElements.push(
-          <div key={`${tag}_${i}`} style={{ minWidth: 120 }}>
-            <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>{tag} {i + 1}</small>
-            <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{formatDetailValue(tag, v)}</strong>
+          <div key={`${tag}_${i}`} className="fos-detail-item">
+            <span className="fos-detail-label">{tag} {i + 1}</span>
+            <strong className="fos-detail-val">{formatDetailValue(tag, v)}</strong>
           </div>
         )
       })
@@ -317,9 +317,9 @@ export function CaseAdditionalDetails({ caseData }) {
     }
 
     expandTagElements.push(
-      <div key={tag} style={{ minWidth: 120 }}>
-        <small style={{ color: '#777777', display: 'block', fontSize: 11 }}>{tag}</small>
-        <strong style={{ fontSize: 13, color: '#eeeeee', wordBreak: 'break-word' }}>{formatDetailValue(tag, rawVal)}</strong>
+      <div key={tag} className="fos-detail-item">
+        <span className="fos-detail-label">{tag}</span>
+        <strong className="fos-detail-val">{formatDetailValue(tag, rawVal)}</strong>
       </div>
     )
   }
