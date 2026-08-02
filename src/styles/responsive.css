@@ -1,0 +1,740 @@
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+
+  /* Login */
+  .login-card {
+    padding: 30px 22px 24px;
+  }
+
+  .login-heading {
+    margin: 30px 0 22px;
+  }
+
+  .login-heading h1 {
+    font-size: 23px;
+  }
+
+  /* Field */
+  .topbar {
+    height: 62px;
+    padding: 0 17px;
+  }
+
+  .topbar .brand {
+    font-size: 13px;
+  }
+
+  .brand-mark {
+    width: 27px;
+    height: 27px;
+  }
+
+  .field-content {
+    padding: 29px 15px 88px;
+  }
+
+  .welcome-row h1 {
+    font-size: 23px;
+  }
+
+  .welcome-row p {
+    font-size: 11px;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .metric-strip {
+    gap: 8px;
+    margin: 25px 0 29px;
+  }
+
+  .metric {
+    min-height: 92px;
+    padding: 12px 10px;
+  }
+
+  .metric strong {
+    font-size: 21px;
+  }
+
+  .metric p {
+    font-size: 8px;
+    margin-top: 13px;
+    line-height: 1.4;
+  }
+
+  .metric span {
+    font-size: 9px;
+  }
+
+  .case-section {
+    max-width: none;
+  }
+
+  .section-heading h2 {
+    font-size: 15px;
+  }
+
+  .section-heading p {
+    font-size: 10px;
+  }
+
+  .mobile-export {
+    display: grid;
+  }
+
+  .case-tools {
+    margin-top: 15px;
+  }
+
+  .sort-select {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .sort-select select {
+    display: none;
+  }
+
+  .case-summary {
+    padding: 13px 11px;
+    grid-template-columns: 1fr 98px 14px;
+    gap: 5px;
+  }
+
+  .case-name {
+    gap: 5px;
+  }
+
+  .case-name strong {
+    font-size: 11px;
+  }
+
+  .status-pill {
+    font-size: 7px;
+    padding: 2px 3px;
+  }
+
+  .loan {
+    margin-left: 11px;
+    font-size: 8px;
+  }
+
+  .case-ptp strong {
+    font-size: 9px;
+  }
+
+  .case-details {
+    padding: 14px 11px;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .info.full {
+    grid-column: span 2;
+  }
+
+  .case-actions>* {
+    flex: 1;
+  }
+
+  .mobile-nav {
+    z-index: 3;
+    height: 65px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: #101c29;
+    border-top: 1px solid #263847;
+  }
+
+  .mobile-nav button {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 3px;
+    border: 0;
+    color: #70869a;
+    background: transparent;
+    font-size: 8px;
+  }
+
+  .mobile-nav button.active {
+    color: #6ce0c9;
+  }
+
+  .mobile-nav .icon {
+    width: 17px;
+  }
+
+  /* Admin — Mobile Topbar & Hamburger */
+  .admin-mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    height: 56px;
+    background: #141414;
+    border-bottom: 1px solid #252525;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .admin-hamburger-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    background: transparent;
+    color: #8498aa;
+    border-radius: 8px;
+  }
+
+  .admin-hamburger-btn:hover {
+    color: #d0d0d0;
+    background: #222222;
+  }
+
+  /* Admin — Mobile Drawer Overlay */
+  .admin-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(2, 8, 14, .65);
+    backdrop-filter: blur(4px);
+    animation: fadeInBackdrop .2s ease;
+  }
+
+  @keyframes fadeInBackdrop {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .admin-mobile-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 80vw);
+    background: #141414;
+    border-right: 1px solid #252525;
+    display: flex;
+    flex-direction: column;
+    z-index: 101;
+    animation: slideInDrawer .25s cubic-bezier(.4, 0, .2, 1);
+    overflow-y: auto;
+  }
+
+  @keyframes slideInDrawer {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* Close animations */
+  .admin-mobile-backdrop.closing {
+    animation: fadeOutBackdrop .25s ease forwards;
+  }
+
+  .admin-mobile-drawer.closing {
+    animation: slideOutDrawer .25s cubic-bezier(.4, 0, .2, 1) forwards;
+  }
+
+  @keyframes fadeOutBackdrop {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes slideOutDrawer {
+    from {
+      transform: translateX(0);
+    }
+
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
+  .admin-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid #252525;
+  }
+
+  .admin-drawer-close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    background: transparent;
+    color: #8498aa;
+    border-radius: 6px;
+  }
+
+  .admin-drawer-close:hover {
+    color: #d2e1eb;
+    background: #142232;
+  }
+
+  .admin-drawer-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px;
+    overflow-y: auto;
+  }
+
+  .admin-drawer-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: #8498aa;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all .15s;
+  }
+
+  .admin-drawer-link:hover {
+    color: #d2e1eb;
+    background: #142232;
+  }
+
+  .admin-drawer-link.active {
+    color: #75e1cb;
+    background: #173135;
+  }
+
+  .admin-drawer-foot {
+    border-top: 1px solid #252525;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-drawer-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .admin-drawer-user strong {
+    display: block;
+    font-size: 12px;
+    color: #dce8f2;
+  }
+
+  .admin-drawer-user small {
+    display: block;
+    font-size: 10px;
+    color: #6f8294;
+    margin-top: 2px;
+  }
+
+  .admin-drawer-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #3a2020;
+    background: rgba(168, 60, 60, .08);
+    color: #e88080;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 8px;
+    transition: all .15s;
+  }
+
+  .admin-drawer-logout:hover {
+    background: rgba(168, 60, 60, .18);
+    border-color: #5a3030;
+  }
+
+  /* Admin — Hide desktop sidebar & topbar, show mobile topbar */
+  .admin-shell {
+    display: block;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .admin-main .topbar {
+    display: none;
+  }
+
+  .sidebar-foot {
+    display: none;
+  }
+
+  .admin-content {
+    padding: 24px 15px 40px;
+  }
+
+  /* Admin Heading */
+  .admin-heading {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .admin-heading h1 {
+    font-size: 22px;
+  }
+
+  .admin-heading>.primary-button {
+    padding: 0 12px;
+    font-size: 11px;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  /* Admin Metrics */
+  .admin-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 21px 0;
+  }
+
+  /* Admin Grid / Upload / Assignment / Users layouts */
+  .admin-grid,
+  .upload-layout,
+  .assignment-layout,
+  .users-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-kind {
+    grid-template-columns: 1fr;
+  }
+
+  /* Panels */
+  .bank-panel,
+  .activity-panel,
+  .workload {
+    padding: 16px;
+  }
+
+  /* Mapping */
+  .mapping-explainer {
+    padding: 20px 16px;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .mapping-stat {
+    width: 70px;
+    height: 70px;
+  }
+
+  .mapping-footer {
+    align-items: flex-start;
+    padding: 15px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mapping-footer .outlined-button {
+    display: none;
+  }
+
+  .source-preview {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .source-preview>div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .source-preview>div:nth-child(-n+2) {
+    border-bottom: 1px solid #233545;
+  }
+
+  .mapping-callout {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mapping-callout .text-button {
+    display: none;
+  }
+
+  /* ── Workbooks Module ── */
+
+  /* Action buttons (Download/Backup/Delete) — wrap on mobile */
+  .admin-content div[style*="display: flex"][style*="gap: 10px"][style*="marginTop: 16px"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Mode toggle buttons (Structure/Tagging/Bulk) */
+  .admin-content div[style*="display: flex"][style*="gap: 10px"][style*="marginTop: 24px"][style*="borderBottom"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Standard column rows */
+  .std-col-row {
+    grid-template-columns: auto auto 1fr auto !important;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .std-col-row input.std-col-label {
+    min-width: 0;
+  }
+
+  /* Mapping column rows */
+  .mapping-col-row {
+    grid-template-columns: auto auto auto 1fr 16px 1fr auto !important;
+    gap: 6px;
+  }
+
+  /* Source column pills */
+  .source-col-pills {
+    padding: 10px;
+  }
+
+  /* ── Tagging Module ── */
+  .tag-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+
+  .tag-row select {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  /* ── Bulk Entry / Data Management ── */
+  .bulk-entry-fields {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+
+  .bulk-entry-fields label {
+    width: 100% !important;
+  }
+
+  /* ── Data Referencing ── */
+  /* Mode tabs wrap on mobile */
+  .ref-mode-tabs {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ref-mode-tabs .primary-button,
+  .ref-mode-tabs .outlined-button {
+    font-size: 11px;
+    padding: 0 10px;
+    min-height: 36px;
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+
+  /* 2-column grid → single column */
+  .ref-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Lookup match grid → stacked */
+  .ref-lookup-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .ref-lookup-grid>span[style*="textAlign: center"] {
+    display: none;
+  }
+
+  /* Upload reference file grid → stacked */
+  .ref-upload-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Reference upload row */
+  .ref-item-top {
+    flex-wrap: wrap;
+  }
+
+  .ref-item-info {
+    min-width: 0;
+  }
+
+  .ref-item-info strong {
+    word-break: break-word;
+  }
+
+  /* Filter rows — stack */
+  .filter-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  .filter-eq {
+    display: none;
+  }
+
+  /* Mapping arrow hide on mobile */
+  .mapping-arrow {
+    display: none;
+  }
+
+  /* Collection mode toggle */
+  .col-mode-toggle {
+    flex-wrap: wrap;
+  }
+
+  /* Preview modal — full screen on mobile */
+  .modal-backdrop .modal[style*="width: '80%'"],
+  .modal-backdrop .modal[style*="width: 80%"] {
+    width: 95% !important;
+    height: 90% !important;
+    max-width: none !important;
+  }
+
+  /* Reference file upload form */
+  .admin-content div[style*="display: 'flex'"][style*="gap: 10"],
+  .admin-content form[style*="display: 'flex'"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* ── Allocation Module ── */
+  .assignment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Users Module ── */
+  .users-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 12px !important;
+  }
+
+  .users-table-wrap table {
+    min-width: 560px;
+  }
+
+  /* ── Backups Module ── */
+  /* Toast notifications - mobile position */
+  div[style*="position: fixed"][style*="bottom: 32"][style*="right: 32"] {
+    right: 12px !important;
+    bottom: 12px !important;
+    left: 12px !important;
+    right: auto !important;
+  }
+
+  /* ── Modal responsive ── */
+  .modal {
+    width: 100% !important;
+    max-width: 450px !important;
+    margin: 0 !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* ── Global Overflow & Dropdown Fixes ── */
+  .admin-content {
+    overflow-x: clip;
+  }
+
+  .admin-main {
+    overflow: visible !important;
+    min-width: 0;
+  }
+
+  select {
+    max-width: 100%;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]) {
+    max-width: 100%;
+  }
+
+  /* Ensure tables scroll horizontally */
+  .mapping-panel {
+    overflow-x: auto;
+  }
+
+  .source-cols-panel,
+  .std-cols-panel {
+    overflow-x: auto;
+    padding: 16px 12px;
+  }
+
+  /* Page skeleton */
+  .page-skeleton {
+    padding: 24px 15px 40px;
+  }
+
+  /* Overview stat cards responsive */
+  .admin-content div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))"] {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  }
+
+  /* Overview workbook header — stack on mobile */
+  .admin-content div[style*="justifyContent: 'space-between'"][style*="borderBottom: '1px solid #1a2c3a'"] {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+}
+
+.ac-desktop-combined-sticky {
+  display: contents;
+}
+
+/* ── Desktop: hide mobile-only elements ── */
+@media (min-width: 761px) {
+  .ac-desktop-combined-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 31;
+    background: #111111;
+    display: block;
+  }
+
+  .admin-mobile-topbar {
+    display: none;
+  }
+
+  .admin-mobile-backdrop {
+    display: none;
+  }
+}

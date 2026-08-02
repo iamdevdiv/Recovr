@@ -1,0 +1,197 @@
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+.topbar {
+  height: 72px;
+  padding: 0 max(22px, calc((100vw - 1160px)/2));
+  border-bottom: 1px solid #252525;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(17, 17, 17, .91);
+}
+
+.topbar-actions,
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.notification {
+  position: relative;
+}
+
+.notification i {
+  position: absolute;
+  right: 9px;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  background: #6be2c7;
+  border-radius: 50%;
+  border: 1px solid #111111;
+}
+
+.profile {
+  color: #d8d8d8;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 4px;
+}
+
+.profile strong,
+.profile small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.profile small {
+  color: #777777;
+  font-size: 10px;
+}
+
+.avatar,
+.large-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #2e2e2e;
+  color: #a9e8dc;
+  font-size: 12px;
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+}
+
+.large-avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 18px;
+}
+
+/* ── Empty states ──────────────────────────────────────────────────────────── */
+.empty-state {
+  padding: 42px 20px;
+  border: 1px dashed #2e2e2e;
+  text-align: center;
+  color: #777777;
+  border-radius: 9px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-state .icon {
+  color: #3a3a3a;
+  margin-bottom: 4px;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+  color: #888888;
+  font-weight: 600;
+}
+
+.empty-state small {
+  color: #555555;
+  font-size: 11px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.panel-empty {
+  border-style: dashed;
+  border-color: #2a2a2a;
+  background: transparent;
+}
+
+/* ── Mobile nav ────────────────────────────────────────────────────────────── */
+.mobile-nav {
+  display: none;
+}
+
+/* ── Modals ────────────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  z-index: 5;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 8, 14, .72);
+  backdrop-filter: blur(6px);
+}
+
+.modal {
+  position: relative;
+  width: min(100%, 390px);
+  padding: 28px;
+  color: #e8e8e8;
+  background: #1c1c1c;
+  border: 1px solid #303030;
+  border-radius: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, .45);
+}
+
+.modal .eyebrow {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 25px;
+  letter-spacing: -1px;
+}
+
+.modal p {
+  margin: 8px 0 0;
+  color: #888888;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.modal form {
+  margin-top: 22px;
+}
+
+.close-button {
+  position: absolute;
+  top: 13px;
+  right: 12px;
+  background: transparent;
+  border: 0;
+  color: #888888;
+  padding: 5px;
+}
+
+.field-checklist {
+  display: grid;
+  gap: 4px;
+  margin: 20px 0;
+}
+
+.field-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #c0c0c0;
+  padding: 9px 6px;
+  border-bottom: 1px solid #252525;
+  font-size: 12px;
+}
+
+.field-checklist input {
+  width: 14px;
+  accent-color: #67d9c2;
+}
+
+.field-checklist .icon {
+  margin-left: auto;
+  color: #555555;
+}

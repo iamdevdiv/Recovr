@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@import './styles/base.css';
+@import './styles/login.css';
+@import './styles/layout.css';
+@import './styles/dashboard.css';
+@import './styles/admin.css';
+@import './styles/responsive.css';
+@import './styles/fos.css';
+@import './styles/admin-cases.css';
