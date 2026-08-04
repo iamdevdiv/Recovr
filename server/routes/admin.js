@@ -2,7 +2,7 @@ import express from 'express'
 import { User } from '../models/User.js'
 import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
-import { getEmployeeIdFromReq } from '../utils/helpers.js'
+import { getEmployeeIdFromReq, filterCasesByFosPermission } from '../utils/helpers.js'
 import { generateExcelForCollection } from './fos.js'
 
 const router = express.Router()
@@ -52,7 +52,8 @@ router.get('/overview-stats', async (req, res) => {
       const statusCol = getSourceCol('Status');
       const fosCol = getSourceCol('FOS');
 
-      const cases = await Case.find({ collectionId: col._id, sheetName: sheet.name }).lean();
+      let cases = await Case.find({ collectionId: col._id, sheetName: sheet.name }).lean();
+      cases = await filterCasesByFosPermission(user.employeeId, col._id, sheet.name, cases);
 
       let totalPos = 0;
       let totalCount = 0;
@@ -61,9 +62,6 @@ router.get('/overview-stats', async (req, res) => {
 
       for (const c of cases) {
         const fosVal = String(c.rawData?.[fosCol] ?? '').trim();
-        if (fosVal !== '' && !visibleFosNames.has(fosVal)) {
-          continue;
-        }
 
         // Map FOS identifier to FOS name if available
         let fosName = fosVal || 'UNASSIGNED';
@@ -231,13 +229,11 @@ router.get('/search-counts', async (req, res) => {
     const fosCol = getSourceCol('FOS');
     const custNameCol = getSourceCol('Customer Name');
     
+    let sheetCases = allCases.filter(c => c.sheetName === sheet.name);
+    sheetCases = await filterCasesByFosPermission(user.employeeId, collectionId, sheet.name, sheetCases);
+    
     let count = 0;
-    for (const c of allCases) {
-      if (c.sheetName !== sheet.name) continue;
-      
-      const fosVal = String(c.rawData?.[fosCol] ?? '').trim();
-      if (user.role !== 'Admin' && user.role !== 'Manager' && fosVal !== '' && !visibleFosNames.has(fosVal)) continue;
-      
+    for (const c of sheetCases) {
       const loanNo = String(c.loanNumber || '').toLowerCase();
       const custName = String(c.rawData?.[custNameCol] || '').toLowerCase();
       
@@ -297,14 +293,8 @@ router.get('/cases', async (req, res) => {
   const statusCol = getSourceCol('Status');
   const posCol = getSourceCol('POS');
 
-  const allCases = await Case.find({ collectionId, sheetName }).lean();
-
-  // Filter exactly as overview-stats does: skip cases where FOS is set but not in visibleFosNames
-  const cases = allCases.filter(c => {
-    const fosVal = String(c.rawData?.[fosCol] ?? '').trim();
-    if (fosVal !== '' && !visibleFosNames.has(fosVal)) return false;
-    return true;
-  });
+  let allCases = await Case.find({ collectionId, sheetName }).lean();
+  const cases = await filterCasesByFosPermission(user.employeeId, collectionId, sheetName, allCases);
 
   // Build rich stats (same structure as overview-stats)
   let totalPos = 0;

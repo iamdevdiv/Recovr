@@ -6,7 +6,7 @@ import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
 import { User } from '../models/User.js'
 import { upload, tempDir, collectionsDir } from '../utils/uploadConfig.js'
-import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, pushNewDefaultTagsToUsers } from '../utils/helpers.js'
+import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, filterCasesByFosPermission, pushNewDefaultTagsToUsers } from '../utils/helpers.js'
 import { generateExcelForCollection, generateExcelForAdmin } from './fos.js'
 import { autoTagColumnsWithAI } from '../utils/aiTagging.js'
 import { TAGS } from '../utils/constants.js'
@@ -517,7 +517,9 @@ router.get('/:id/distinct', async (req, res) => {
   const mapping = sheetDef.lastMapping.find(m => m.standardLabel === column)
   const sourceCol = mapping ? mapping.sourceColumn : column
 
-  const cases = await Case.find({ collectionId: req.params.id, sheetName }).lean()
+  const employeeId = getEmployeeIdFromReq(req)
+  let cases = await Case.find({ collectionId: req.params.id, sheetName }).lean()
+  cases = await filterCasesByFosPermission(employeeId, req.params.id, sheetName, cases)
   const values = new Set()
   let hasBlank = false
   for (const c of cases) {
@@ -559,26 +561,7 @@ router.post('/:id/bulk-update', async (req, res) => {
 
   let cases = await Case.find({ collectionId: req.params.id, sheetName }).lean()
 
-  if (user.role === 'Admin') {
-    const wbPerm = (user.permissions || {})[req.params.id] || {}
-    const sheetPerm = (wbPerm.sheets || {})[sheetName] || {}
-    const visibleTags = new Set(sheetPerm.visibleTags || [])
-
-    const getSourceCol = (tag) => {
-      const col = sheetDef.standardColumns.find(c => c.tag === tag)
-      if (!col) return null
-      const mapping = (sheetDef.lastMapping || []).find(m => m.standardLabel === col.label)
-      return mapping ? mapping.sourceColumn : col.label
-    }
-    const fosSourceCol = getSourceCol('FOS')
-
-    if (fosSourceCol) {
-      cases = cases.filter(c => {
-        const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim()
-        return fosVal === '' || visibleTags.has(fosVal)
-      })
-    }
-  }
+  cases = await filterCasesByFosPermission(employeeId, req.params.id, sheetName, cases)
   const bulkOps = []
   let updatedCount = 0
   const bulkUpdateChanges = []
@@ -686,26 +669,7 @@ router.post('/:id/bulk-update-preview', async (req, res) => {
 
   let cases = await Case.find({ collectionId: req.params.id, sheetName }).lean()
 
-  if (user.role === 'Admin') {
-    const wbPerm = (user.permissions || {})[req.params.id] || {}
-    const sheetPerm = (wbPerm.sheets || {})[sheetName] || {}
-    const visibleTags = new Set(sheetPerm.visibleTags || [])
-
-    const getSourceCol = (tag) => {
-      const col = sheetDef.standardColumns.find(c => c.tag === tag)
-      if (!col) return null
-      const mapping = (sheetDef.lastMapping || []).find(m => m.standardLabel === col.label)
-      return mapping ? mapping.sourceColumn : col.label
-    }
-    const fosSourceCol = getSourceCol('FOS')
-
-    if (fosSourceCol) {
-      cases = cases.filter(c => {
-        const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim()
-        return fosVal === '' || visibleTags.has(fosVal)
-      })
-    }
-  }
+  cases = await filterCasesByFosPermission(employeeId, req.params.id, sheetName, cases)
 
   const preview = []
 
@@ -772,26 +736,7 @@ router.post('/:id/bulk-update-count', async (req, res) => {
 
   let cases = await Case.find({ collectionId: req.params.id, sheetName }).lean()
 
-  if (user.role === 'Admin') {
-    const wbPerm = (user.permissions || {})[req.params.id] || {}
-    const sheetPerm = (wbPerm.sheets || {})[sheetName] || {}
-    const visibleTags = new Set(sheetPerm.visibleTags || [])
-
-    const getSourceCol = (tag) => {
-      const col = sheetDef.standardColumns.find(c => c.tag === tag)
-      if (!col) return null
-      const mapping = (sheetDef.lastMapping || []).find(m => m.standardLabel === col.label)
-      return mapping ? mapping.sourceColumn : col.label
-    }
-    const fosSourceCol = getSourceCol('FOS')
-
-    if (fosSourceCol) {
-      cases = cases.filter(c => {
-        const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim()
-        return fosVal === '' || visibleTags.has(fosVal)
-      })
-    }
-  }
+  cases = await filterCasesByFosPermission(employeeId, req.params.id, sheetName, cases)
   let matchCount = 0
 
   for (const c of cases) {

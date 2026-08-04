@@ -16,9 +16,10 @@ export async function filterCasesByFosPermission(employeeId, collectionId, sheet
   const user = await User.findOne({ employeeId }).lean();
   if (!user) return cases;
 
-  // We enforce FOS permissions for Admins and Managers via their visibleTags.
-  // Field Employees might only see their assigned cases natively elsewhere, but this can safely apply to all roles 
-  // if their visibleTags are configured.
+  // Admins have unrestricted access to all cases.
+  if (user.role === 'Admin') return cases;
+
+  // We enforce FOS permissions for Managers via their visibleTags.
   const wbPerm = (user.permissions || {})[collectionId] || {};
   const sheetPerm = (wbPerm.sheets || {})[sheetName] || {};
   const visibleTags = new Set(sheetPerm.visibleTags || []);
@@ -37,12 +38,13 @@ export async function filterCasesByFosPermission(employeeId, collectionId, sheet
 
   const fosSourceCol = getSourceCol('FOS');
 
-  // If there's an FOS column and the user has explicit tags selected, filter.
-  // If visibleTags is empty, it acts like they see everything (this matches the current generateExcelForAdmin behavior).
-  if (fosSourceCol && visibleTags.size > 0) {
+  // Filter cases based on explicit tags.
+  // If visibleTags is empty, no tags are permitted (meaning they see nothing).
+  if (fosSourceCol) {
     return cases.filter(c => {
       const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim();
-      return fosVal === '' || visibleTags.has(fosVal);
+      if (fosVal === '') return visibleTags.has('__BLANKS__');
+      return visibleTags.has(fosVal);
     });
   }
 

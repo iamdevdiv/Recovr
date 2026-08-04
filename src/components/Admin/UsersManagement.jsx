@@ -698,11 +698,17 @@ export function UsersManagement() {
             <button className="close-button" type="button" onClick={() => setShowPermissionsModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow">DATA ACCESS</span>
             <h2 style={{ marginBottom: 4 }}>Permissions for {selectedUser.name}</h2>
-            <p style={{ color: '#777777', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
-              {selectedUser.role === 'Field Employee'
-                ? 'Select which workbooks, sheets, and data tags this FOS can access.'
-                : `Select which workbooks, sheets, and FOS names this ${selectedUser.role.toLowerCase()} can access.`}
-            </p>
+            {selectedUser.role === 'Admin' ? (
+              <div style={{ marginBottom: 16, marginTop: 4, padding: '12px', background: 'rgba(231, 76, 60, 0.1)', border: '1px solid rgba(231, 76, 60, 0.2)', borderRadius: 6 }}>
+                <p style={{ margin: 0, fontSize: 12, color: '#e74c3c', fontWeight: 500 }}>Admins have unrestricted access to all cases. All data access configurations are bypassed.</p>
+              </div>
+            ) : (
+              <p style={{ color: '#777777', fontSize: 12, marginBottom: 16, marginTop: 4 }}>
+                {selectedUser.role === 'Field Employee'
+                  ? 'Select which workbooks, sheets, and data tags this FOS can access.'
+                  : `Select which workbooks, sheets, and FOS names this ${selectedUser.role.toLowerCase()} can access.`}
+              </p>
+            )}
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {workbooks.length === 0 ? (
@@ -713,26 +719,30 @@ export function UsersManagement() {
                 const wbPerm = permissions[wb._id] || { enabled: false, sheets: {} }
                 const isExpanded = expandedWorkbooks.has(wb._id)
                 return (
-                  <div key={wb._id} style={{ border: `1px solid ${wbPerm.enabled ? '#3a6b5e' : '#252525'}`, borderRadius: 8, overflow: 'hidden', background: wbPerm.enabled ? '#0d2220' : '#181818' }}>
+                  <div key={wb._id} style={{ border: `1px solid ${selectedUser.role === 'Admin' || wbPerm.enabled ? '#3a6b5e' : '#252525'}`, borderRadius: 8, overflow: 'hidden', background: selectedUser.role === 'Admin' || wbPerm.enabled ? '#0d2220' : '#181818' }}>
                     {/* Workbook header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer' }}
-                      onClick={() => toggleWbExpand(wb._id)}>
-                      <input
-                        type="checkbox"
-                        checked={!!wbPerm.enabled}
-                        onChange={e => toggleWorkbook(wb._id)}
-                        onClick={e => e.stopPropagation()}
-                        style={{ width: 15, height: 15, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0 }}
-                        title={wbPerm.enabled ? "Disable all sheets" : "Enable all sheets"}
-                      />
-                      <Icon name="layers" size={15} style={{ color: wbPerm.enabled ? '#6be2c7' : '#4a6070' }} />
-                      <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: wbPerm.enabled ? '#c8eee5' : '#777777' }}>{wb.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: selectedUser.role === 'Admin' ? 'default' : 'pointer' }}
+                      onClick={() => selectedUser.role !== 'Admin' && toggleWbExpand(wb._id)}>
+                      {selectedUser.role !== 'Admin' && (
+                        <input
+                          type="checkbox"
+                          checked={!!wbPerm.enabled}
+                          onChange={e => toggleWorkbook(wb._id)}
+                          onClick={e => e.stopPropagation()}
+                          style={{ width: 15, height: 15, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0 }}
+                          title={wbPerm.enabled ? "Disable all sheets" : "Enable all sheets"}
+                        />
+                      )}
+                      <Icon name="layers" size={15} style={{ color: selectedUser.role === 'Admin' || wbPerm.enabled ? '#6be2c7' : '#4a6070' }} />
+                      <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: selectedUser.role === 'Admin' || wbPerm.enabled ? '#c8eee5' : '#777777' }}>{wb.name}</span>
                       <span style={{ fontSize: 10, color: '#555555' }}>{wb.sheets.length} sheets</span>
-                      <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: '#555555' }} />
+                      {selectedUser.role !== 'Admin' && (
+                        <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: '#555555' }} />
+                      )}
                     </div>
 
                     {/* Sheets */}
-                    {isExpanded && (
+                    {isExpanded && selectedUser.role !== 'Admin' && (
                       <div style={{ borderTop: '1px solid #252525', padding: '8px 14px 12px' }}>
                         {wb.sheets.map(sheet => {
                           const sheetPerm = (wbPerm.sheets || {})[sheet.name] || { enabled: false, visibleTags: [] }
@@ -753,9 +763,10 @@ export function UsersManagement() {
                                 <input
                                   type="checkbox"
                                   checked={!!sheetPerm.enabled}
+                                  disabled={selectedUser.role === 'Admin'}
                                   onChange={e => toggleSheet(wb._id, sheet.name, uniqueSheetTags)}
                                   onClick={e => e.stopPropagation()}
-                                  style={{ width: 14, height: 14, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0 }}
+                                  style={{ width: 14, height: 14, accentColor: '#6be2c7', cursor: selectedUser.role === 'Admin' ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: selectedUser.role === 'Admin' ? 0.5 : 1 }}
                                 />
                                 <Icon name="file" size={13} style={{ color: sheetPerm.enabled ? '#5ad4bc' : '#3a5060' }} />
                                 <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: sheetPerm.enabled ? '#a8e8dc' : '#5a7a8a' }}>{sheet.name}</span>
@@ -774,6 +785,7 @@ export function UsersManagement() {
                                 <div style={{ borderTop: '1px solid #1a2c3a', padding: '8px 12px' }}>
                                   {(selectedUser.role === 'Admin' || selectedUser.role === 'Manager') ? (
                                     <>
+
                                       {adminFosOptions[sheetKey] === undefined ? (
                                         <p style={{ fontSize: 11, color: '#555555', margin: 0 }}>Loading FOS names...</p>
                                       ) : adminFosOptions[sheetKey].length === 0 ? (
@@ -782,7 +794,8 @@ export function UsersManagement() {
                                         <>
                                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                             <span style={{ fontSize: 10, color: '#555555', fontWeight: 600 }}>VISIBLE FOS NAMES</span>
-                                            <button type="button" className="text-button" style={{ fontSize: 10 }}
+                                            <button type="button" className="text-button" style={{ fontSize: 10, opacity: selectedUser.role === 'Admin' ? 0.5 : 1, cursor: selectedUser.role === 'Admin' ? 'not-allowed' : 'pointer' }}
+                                              disabled={selectedUser.role === 'Admin'}
                                               onClick={() => toggleAllTags(wb._id, sheet.name, adminFosOptions[sheetKey], adminFosOptions[sheetKey].length > 0 && adminFosOptions[sheetKey].every(t => visibleTags.includes(t)) ? false : true)}>
                                               {(adminFosOptions[sheetKey].length > 0 && adminFosOptions[sheetKey].every(t => visibleTags.includes(t))) ? 'Deselect all' : 'Select all'}
                                             </button>
@@ -794,6 +807,7 @@ export function UsersManagement() {
                                                 <button
                                                   key={fos}
                                                   type="button"
+                                                  disabled={selectedUser.role === 'Admin'}
                                                   onClick={() => toggleTag(wb._id, sheet.name, fos)}
                                                   style={{
                                                     padding: '3px 9px',
@@ -802,7 +816,8 @@ export function UsersManagement() {
                                                     border: `1px solid ${isOn ? '#3a7a6c' : '#2e2e2e'}`,
                                                     background: isOn ? '#123a32' : '#141414',
                                                     color: isOn ? '#7be4cf' : '#4a6275',
-                                                    cursor: 'pointer',
+                                                    cursor: selectedUser.role === 'Admin' ? 'not-allowed' : 'pointer',
+                                                    opacity: selectedUser.role === 'Admin' ? 0.7 : 1,
                                                     fontFamily: 'inherit',
                                                     transition: 'all .15s'
                                                   }}
@@ -873,7 +888,7 @@ export function UsersManagement() {
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid #252525' }}>
               <button type="button" className="outlined-button" onClick={() => setShowPermissionsModal(false)}>Cancel</button>
-              <button type="button" className="primary-button" style={{ flex: 1 }} onClick={handleSavePermissions} disabled={permSaving}>
+              <button type="button" className="primary-button" style={{ flex: 1, opacity: selectedUser.role === 'Admin' ? 0.5 : 1, cursor: selectedUser.role === 'Admin' ? 'not-allowed' : 'pointer' }} onClick={handleSavePermissions} disabled={permSaving || selectedUser.role === 'Admin'}>
                 {permSaving ? <><Icon name="spinner" size={14} className="spin-icon" /> Saving...</> : 'Save Permissions'}
               </button>
             </div>
