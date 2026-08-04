@@ -206,7 +206,7 @@ export function Allocation() {
           alignItems: 'center',
           gap: 10,
           boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-          zIndex: 1000,
+          zIndex: 99999,
           animation: 'fadeIn 0.2s ease-out'
         }}>
           {allocationLoading && !success && !error && <><Icon name="spinner" size={16} className="spin-icon" /><span style={{ color: '#777777', fontSize: 13, fontWeight: 600 }}>Allocating case...</span></>}

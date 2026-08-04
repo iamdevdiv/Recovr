@@ -1065,7 +1065,7 @@ export function DataReferencing() {
           alignItems: 'center',
           gap: 10,
           boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-          zIndex: 9999,
+          zIndex: 99999,
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <Icon name="close" size={16} style={{ color: '#e88080' }} />
