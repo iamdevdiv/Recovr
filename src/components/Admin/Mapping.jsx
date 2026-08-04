@@ -5,7 +5,7 @@ import { useDragSort } from '../../hooks/useDragSort.js'
 import { useDownloadWorkbook } from '../../hooks/useDownloadWorkbook.js'
 
 export function Mapping() {
-  const { download: downloadWb, progress: downloadProgress } = useDownloadWorkbook()
+  const { download: downloadWb, progress: downloadProgress, error: downloadError } = useDownloadWorkbook()
   const location = useLocation()
   const navigate = useNavigate()
   const ctx = location.state
@@ -265,7 +265,7 @@ export function Mapping() {
           </button>
         </div>
       </section>
-      {genError && (
+      {(genError || downloadError) && (
         <div style={{
           position: 'fixed',
           bottom: 32,
@@ -282,7 +282,7 @@ export function Mapping() {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <Icon name="close" size={16} style={{ color: '#e88080' }} />
-          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{genError}</span>
+          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{genError || downloadError}</span>
         </div>
       )}
     </div>
