@@ -2,7 +2,7 @@ import express from 'express'
 import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
 import { User } from '../models/User.js'
-import { autoEnablePermissions, getEmployeeIdFromReq } from '../utils/helpers.js'
+import { autoEnablePermissions, getEmployeeIdFromReq, filterCasesByFosPermission } from '../utils/helpers.js'
 import { generateExcelForCollection } from './fos.js'
 
 const router = express.Router()
@@ -37,26 +37,7 @@ router.get('/cases', async (req, res) => {
 
   let cases = await Case.find({ collectionId, sheetName }).lean()
 
-  if (user.role === 'Admin') {
-    const wbPerm = (user.permissions || {})[collectionId] || {}
-    const sheetPerm = (wbPerm.sheets || {})[sheetName] || {}
-    const visibleTags = new Set(sheetPerm.visibleTags || [])
-
-    const getSourceCol = (tag) => {
-      const col = sheet.standardColumns.find(c => c.tag === tag)
-      if (!col) return null
-      const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === col.label)
-      return mapping ? mapping.sourceColumn : col.label
-    }
-    const fosSourceCol = getSourceCol('FOS')
-    
-    if (fosSourceCol) {
-      cases = cases.filter(c => {
-        const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim()
-        return fosVal === '' || visibleTags.has(fosVal)
-      })
-    }
-  }
+  cases = await filterCasesByFosPermission(employeeId, collectionId, sheetName, cases)
 
   const tagToSourceCol = {};
   for (const col of sheet.standardColumns) {

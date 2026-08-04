@@ -6,7 +6,7 @@ import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
 import { User } from '../models/User.js'
 import { tempDir } from '../utils/uploadConfig.js'
-import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq } from '../utils/helpers.js'
+import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, filterCasesByFosPermission } from '../utils/helpers.js'
 import { generateExcelForCollection } from './fos.js'
 import { createBackup } from '../utils/backupHelper.js'
 
@@ -123,7 +123,8 @@ router.post('/apply-count/:collectionId', async (req, res) => {
   const targetSheetObj = collection.sheets[sheetIdx]
   const sheetMappingMap = new Map((targetSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
 
-  const cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  let cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  cases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, cases)
   let updatedCount = 0
 
   for (const c of cases) {
@@ -241,7 +242,8 @@ router.post('/apply/:collectionId', async (req, res) => {
   const targetSheetObj = collection.sheets[sheetIdx]
   const sheetMappingMap = new Map((targetSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
 
-  const cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  let cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  cases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, cases)
   let updatedCount = 0
 
   const bulkOps = []
@@ -386,7 +388,8 @@ router.post('/move-cases', async (req, res) => {
   const sheetMappingMap = new Map((sourceSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
   const lookupSrcCol = sheetMappingMap.get(lookupMapping.targetColumn) || lookupMapping.targetColumn
 
-  const sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  let sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  sourceCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), sourceColId, sourceSheet, sourceCases)
   let casesToMove = []
 
   for (const c of sourceCases) {
@@ -539,7 +542,8 @@ router.post('/move-cases-count', async (req, res) => {
   const sheetMappingMap = new Map((sourceSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
   const lookupSrcCol = sheetMappingMap.get(lookupMapping.targetColumn) || lookupMapping.targetColumn
 
-  const sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  let sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  sourceCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), sourceColId, sourceSheet, sourceCases)
 
   let destLoanNumbers = new Set()
   let destExistingCount = undefined
@@ -607,7 +611,8 @@ router.post('/find-new-cases-count/:collectionId', async (req, res) => {
     }
   }
 
-  const targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).select('rawData').lean()
+  let targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).select('rawData').lean()
+  targetCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, targetCases)
   let newCasesCount = 0
 
   for (const c of targetCases) {
@@ -649,7 +654,8 @@ router.post('/find-new-cases/:collectionId', async (req, res) => {
     }
   }
 
-  const targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  let targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  targetCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, targetCases)
   let newCasesCount = 0
   const bulkOps = []
   const newCasesChanges = []
@@ -747,7 +753,8 @@ router.post('/apply-preview/:collectionId', async (req, res) => {
   const targetSheetObj = collection.sheets[sheetIdx]
   const sheetMappingMap = new Map((targetSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
 
-  const cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  let cases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  cases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, cases)
   const preview = []
 
   for (const c of cases) {
@@ -833,7 +840,8 @@ router.post('/find-new-cases-preview/:collectionId', async (req, res) => {
     }
   }
 
-  const targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  let targetCases = await Case.find({ collectionId: req.params.collectionId, sheetName: targetSheet }).lean()
+  targetCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), req.params.collectionId, targetSheet, targetCases)
   const preview = []
 
   for (const c of targetCases) {
@@ -898,7 +906,8 @@ router.post('/move-cases-preview', async (req, res) => {
 
   const sheetMappingMap = new Map((sourceSheetObj.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
   const lookupSrcCol = sheetMappingMap.get(lookupMapping.targetColumn) || lookupMapping.targetColumn
-  const sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  let sourceCases = await Case.find({ collectionId: sourceColId, sheetName: sourceSheet }).lean()
+  sourceCases = await filterCasesByFosPermission(getEmployeeIdFromReq(req), sourceColId, sourceSheet, sourceCases)
 
   let destLoanNumbers = new Set()
   if (destColId && destSheet) {
