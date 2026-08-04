@@ -117,13 +117,13 @@
 
 /* ── Modals ────────────────────────────────────────────────────────────────── */
 .modal-backdrop {
-  z-index: 5;
+  z-index: 9999;
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(2, 8, 14, .72);
+  background: rgba(0, 0, 0, .72);
   backdrop-filter: blur(6px);
 }
 

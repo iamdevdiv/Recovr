@@ -181,6 +181,8 @@ export function UsersManagement() {
       if (!res.ok) throw new Error(data.message)
 
       setUsers(prev => [data.user, ...prev])
+      setPermSuccess('User created successfully.')
+      setTimeout(() => setPermSuccess(''), 3000)
       setShowAddModal(false)
     } catch (err) {
       if (err.message.includes('JSON') || err.message.includes('fetch')) {
@@ -208,6 +210,8 @@ export function UsersManagement() {
       if (!res.ok) throw new Error(data.message)
 
       setUsers(prev => prev.map(u => u._id === selectedUser._id ? data.user : u))
+      setPermSuccess('User updated successfully.')
+      setTimeout(() => setPermSuccess(''), 3000)
       setShowEditModal(false)
     } catch (err) {
       if (err.message.includes('JSON') || err.message.includes('fetch')) {
@@ -228,6 +232,8 @@ export function UsersManagement() {
       }
 
       setUsers(prev => prev.filter(u => u._id !== selectedUser._id))
+      setPermSuccess('User deleted successfully.')
+      setTimeout(() => setPermSuccess(''), 3000)
       setShowDeleteModal(false)
     } catch (err) {
       if (err.message.includes('JSON') || err.message.includes('fetch')) {
@@ -297,22 +303,24 @@ export function UsersManagement() {
 
       if (newEnabled) {
         const wb = workbooks.find(w => w._id === wbId)
-        if (wb && wb.sheets && wb.sheets.length === 1) {
-          const sheet = wb.sheets[0]
-          const sheetTags = sheet.standardColumns
-            ? sheet.standardColumns.filter(c => c.tag).map(c => c.tag)
-            : []
-          const uniqueSheetTags = [...new Set(sheetTags)]
+        if (wb && wb.sheets) {
+          wb.sheets.forEach(sheet => {
+            const sheetTags = sheet.standardColumns
+              ? sheet.standardColumns.filter(c => c.tag).map(c => c.tag)
+              : []
+            const uniqueSheetTags = [...new Set(sheetTags)]
+            const sheetKey = `${wb._id}__${sheet.name}`
 
-          const visibleTags = (selectedUser?.role === 'Admin' || selectedUser?.role === 'Manager')
-            ? uniqueSheetTags
-            : uniqueSheetTags.filter(t => DEFAULT_VISIBLE_TAGS.includes(t))
+            const visibleTags = (selectedUser?.role === 'Admin' || selectedUser?.role === 'Manager')
+              ? (adminFosOptions[sheetKey] || [])
+              : uniqueSheetTags.filter(t => DEFAULT_VISIBLE_TAGS.includes(t))
 
-          newSheets[sheet.name] = {
-            ...newSheets[sheet.name],
-            enabled: true,
-            visibleTags
-          }
+            newSheets[sheet.name] = {
+              ...newSheets[sheet.name],
+              enabled: true,
+              visibleTags: newSheets[sheet.name]?.visibleTags?.length > 0 ? newSheets[sheet.name].visibleTags : visibleTags
+            }
+          })
         }
       } else {
         Object.keys(newSheets).forEach(sheetName => {
@@ -547,7 +555,7 @@ export function UsersManagement() {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowAddModal(false); setFormError(''); } }}>
           <div className="modal" style={{ maxWidth: 400 }}>
             <button className="close-button" type="button" onClick={() => setShowAddModal(false)}><Icon name="close" size={20} /></button>
             <h2>Add new user</h2>
@@ -601,7 +609,7 @@ export function UsersManagement() {
                 />
               </label>
 
-              {formError && <p className="form-error">{formError}</p>}
+
 
               <button type="submit" className="primary-button" style={{ marginTop: 8 }}>Create User</button>
             </form>
@@ -611,7 +619,7 @@ export function UsersManagement() {
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowEditModal(false); setFormError(''); } }}>
           <div className="modal" style={{ maxWidth: 400 }}>
             <button className="close-button" type="button" onClick={() => setShowEditModal(false)}><Icon name="close" size={20} /></button>
             <h2>Edit {selectedUser.employeeId}</h2>
@@ -655,7 +663,7 @@ export function UsersManagement() {
                 />
               </label>
 
-              {formError && <p className="form-error">{formError}</p>}
+
 
               <button type="submit" className="primary-button" style={{ marginTop: 8 }}>Save Changes</button>
             </form>
@@ -665,14 +673,14 @@ export function UsersManagement() {
 
       {/* Delete User Modal */}
       {showDeleteModal && selectedUser && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) { setShowDeleteModal(false); setFormError(''); } }}>
           <div className="modal" style={{ maxWidth: 400 }}>
             <button className="close-button" type="button" onClick={() => setShowDeleteModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>DANGER ZONE</span>
             <h2>Delete User</h2>
             <p>Are you sure you want to permanently delete user <strong>{selectedUser.employeeId}</strong>?</p>
 
-            {formError && <p className="form-error" style={{ marginTop: 16 }}>{formError}</p>}
+
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
               <button type="button" className="outlined-button" onClick={() => setShowDeleteModal(false)} style={{ flex: 1 }}>Cancel</button>
@@ -714,6 +722,7 @@ export function UsersManagement() {
                         onChange={e => toggleWorkbook(wb._id)}
                         onClick={e => e.stopPropagation()}
                         style={{ width: 15, height: 15, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0 }}
+                        title={wbPerm.enabled ? "Disable all sheets" : "Enable all sheets"}
                       />
                       <Icon name="layers" size={15} style={{ color: wbPerm.enabled ? '#6be2c7' : '#4a6070' }} />
                       <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: wbPerm.enabled ? '#c8eee5' : '#777777' }}>{wb.name}</span>
@@ -859,8 +868,7 @@ export function UsersManagement() {
               })}
             </div>
 
-            {formError && <p className="form-error" style={{ marginTop: 12 }}>{formError}</p>}
-            {permSuccess && <p style={{ color: '#5cce9d', fontSize: 12, marginTop: 12 }}>{permSuccess}</p>}
+
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid #252525' }}>
               <button type="button" className="outlined-button" onClick={() => setShowPermissionsModal(false)}>Cancel</button>
@@ -900,8 +908,7 @@ export function UsersManagement() {
               ))}
             </div>
 
-            {formError && <p className="form-error" style={{ marginTop: 16 }}>{formError}</p>}
-            {permSuccess && <p style={{ color: '#5cce9d', fontSize: 12, marginTop: 16 }}>{permSuccess}</p>}
+
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #252525' }}>
               <button type="button" className="outlined-button" onClick={() => setShowModulesModal(false)}>Cancel</button>
@@ -910,6 +917,28 @@ export function UsersManagement() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Toast Notification */}
+      {(formError || permSuccess || permSaving || modulesSaving) && (
+        <div style={{
+          position: 'fixed',
+          bottom: 32,
+          right: 32,
+          background: '#111111',
+          border: '1px solid #252525',
+          borderRadius: 8,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          zIndex: 1000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          {(permSaving || modulesSaving) && !permSuccess && !formError && <><Icon name="spinner" size={16} className="spin-icon" /><span style={{ color: '#777777', fontSize: 13, fontWeight: 600 }}>Saving...</span></>}
+          {permSuccess && <><Icon name="check" size={16} style={{ color: '#5cce9d' }} /><span style={{ color: '#5cce9d', fontSize: 13, fontWeight: 600 }}>{permSuccess}</span></>}
+          {formError && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{formError}</span></>}
         </div>
       )}
     </div>

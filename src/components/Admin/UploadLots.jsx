@@ -340,7 +340,7 @@ export function UploadLots() {
               <button className="outlined-button" type="button" onClick={() => setFilters(p => [...p, { id: Date.now(), col: '', selectedValues: new Set() }])} disabled={!isDone}><Icon name="plus" size={13} /> Add filter</button>
             </div>
 
-            {importError && <p className="form-error" style={{ marginTop: 8 }}>{importError}</p>}
+
 
             {isDone && preview && (
               <div style={{ fontSize: 13, color: '#cccccc', margin: '24px 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -369,7 +369,7 @@ export function UploadLots() {
         )}
       </section>
 
-      {fetchError && (
+      {(fetchError || importError) && (
         <div style={{
           position: 'fixed',
           bottom: 32,
@@ -386,7 +386,7 @@ export function UploadLots() {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <Icon name="close" size={16} style={{ color: '#e88080' }} />
-          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError}</span>
+          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError || importError}</span>
         </div>
       )}
     </div>

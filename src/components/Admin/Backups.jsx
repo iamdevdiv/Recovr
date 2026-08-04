@@ -327,7 +327,7 @@ export function Backups() {
 
       {/* Restore Modal */}
       {restoreConfirm && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setRestoreConfirm(null)}>
           <div className="modal">
             <button className="close-button" onClick={() => setRestoreConfirm(null)}><Icon name="close" size={16} /></button>
             <span className="eyebrow" style={{ color: '#419b74' }}>RESTORE BACKUP</span>
@@ -343,7 +343,7 @@ export function Backups() {
 
       {/* Delete Modal */}
       {deleteConfirm && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteConfirm(null)}>
           <div className="modal">
             <button className="close-button" onClick={() => setDeleteConfirm(null)}><Icon name="close" size={16} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>DELETE BACKUP</span>
@@ -359,7 +359,7 @@ export function Backups() {
 
       {/* Bulk Delete Modal */}
       {bulkDeleteConfirm && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setBulkDeleteConfirm(false)}>
           <div className="modal">
             <button className="close-button" onClick={() => setBulkDeleteConfirm(false)}><Icon name="close" size={16} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>BULK DELETE BACKUPS</span>
@@ -375,10 +375,10 @@ export function Backups() {
 
       {/* Preview Details Modal */}
       {previewDetails && (
-        <div className="modal-backdrop" onClick={() => setPreviewDetails(null)} style={{ zIndex: 9999 }}>
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setPreviewDetails(null)}>
           <div className="modal" style={{ width: '80%', height: '80%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 18, color: '#eeeeee' }}>Changes Detail <span style={{ color: '#777777', fontSize: 14, fontWeight: 400, marginLeft: 12 }}>({previewDetails.mode})</span></h3>
+              <h3 style={{ margin: 0, fontSize: 18, color: '#eeeeee' }}>Changes Detail</h3>
               <button className="icon-button" onClick={() => setPreviewDetails(null)}><Icon name="close" size={20} /></button>
             </div>
 

@@ -373,6 +373,7 @@ export function DataReferencing() {
     setPreviewData([])
     setExpandedPreviewCases(new Set())
 
+    const token = localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''
     try {
       let res;
       if (mode === 'apply') {
@@ -970,7 +971,7 @@ export function DataReferencing() {
       </section>
 
       {deleteConfirm && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteConfirm(false)}>
           <div className="modal">
             <button className="close-button" onClick={() => setDeleteConfirm(false)}><Icon name="close" size={16} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>DELETE REFERENCE</span>
@@ -985,7 +986,7 @@ export function DataReferencing() {
       )}
 
       {previewModalOpen && (
-        <div className="modal-backdrop" onClick={() => setPreviewModalOpen(false)} style={{ zIndex: 9999 }}>
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setPreviewModalOpen(false)}>
           <div className="modal" style={{ width: '80%', height: '80%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 18, color: '#eeeeee' }}>Preview Details</h3>

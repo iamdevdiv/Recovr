@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Icon } from '../Shared.jsx'
-import { useDragSort } from './useDragSort.js'
+import { useDragSort } from '../../hooks/useDragSort.js'
 import { DataManagement } from './DataManagement.jsx'
 import { TaggingManagement } from './TaggingManagement.jsx'
 import { useDownloadWorkbook } from '../../hooks/useDownloadWorkbook.js'
@@ -382,7 +382,7 @@ export function SheetManagement() {
                 })
               })()}
             </div>
-            {saveError && <p className="form-error" style={{ marginTop: 12 }}>{saveError}</p>}
+
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
 
               <button className="primary-button" disabled={saveState === 'saving'} onClick={save} style={{ flex: 1, ...(saveState === 'saved' ? { background: '#5cce9d', color: '#08201d' } : {}) }}>{saveState === 'saving' ? 'Tagging via AI & Saving…' : saveState === 'saved' ? 'Saved & Regenerated!' : 'Save & Regenerate Excel'}</button>
@@ -409,7 +409,7 @@ export function SheetManagement() {
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteModal(false)}>
           <div className="modal">
             <button className="close-button" onClick={() => setDeleteModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>DANGER ZONE</span>
@@ -431,7 +431,7 @@ export function SheetManagement() {
                   style={{ marginTop: 8 }}
                 />
               </label>
-              {deleteError && <p className="form-error" style={{ marginTop: 8 }}>{deleteError}</p>}
+
               <button
                 className="primary-button"
                 style={{ background: '#a13b3b', color: '#fff', width: '100%', marginTop: 16 }}
@@ -447,7 +447,7 @@ export function SheetManagement() {
 
       {/* Delete Sheet Confirmation Modal */}
       {deleteSheetModal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setDeleteSheetModal(false)}>
           <div className="modal">
             <button className="close-button" onClick={() => setDeleteSheetModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow" style={{ color: '#e8c480' }}>DANGER ZONE</span>
@@ -463,7 +463,7 @@ export function SheetManagement() {
                   style={{ marginTop: 8 }}
                 />
               </label>
-              {deleteSheetError && <p className="form-error" style={{ marginTop: 8 }}>{deleteSheetError}</p>}
+
               <button
                 className="primary-button"
                 style={{ background: '#a1813b', color: '#fff', width: '100%', marginTop: 16 }}
@@ -478,7 +478,7 @@ export function SheetManagement() {
       )}
       {/* Manual Backup Modal */}
       {manualBackupModal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setManualBackupModal(false)}>
           <div className="modal">
             <button className="close-button" onClick={() => setManualBackupModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow" style={{ color: '#419b74' }}>SYSTEM</span>
@@ -495,7 +495,7 @@ export function SheetManagement() {
                   maxLength={150}
                 />
               </label>
-              {backupError && <p className="form-error" style={{ marginTop: 8 }}>{backupError}</p>}
+
               <button
                 className="primary-button"
                 style={{ background: '#419b74', color: '#fff', width: '100%', marginTop: 16 }}
@@ -510,7 +510,7 @@ export function SheetManagement() {
       )}
 
       {/* Toast Notification */}
-      {(backupMessage || fetchError) && (
+      {(backupMessage || fetchError || saveError || deleteError || deleteSheetError || backupError) && (
         <div style={{
           position: 'fixed',
           bottom: 32,
@@ -527,7 +527,7 @@ export function SheetManagement() {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           {backupMessage && <><Icon name="check" size={16} style={{ color: '#5cce9d' }} /><span style={{ color: '#5cce9d', fontSize: 13, fontWeight: 600 }}>{backupMessage}</span></>}
-          {fetchError && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError}</span></>}
+          {(fetchError || saveError || deleteError || deleteSheetError || backupError) && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError || saveError || deleteError || deleteSheetError || backupError}</span></>}
         </div>
       )}
 
