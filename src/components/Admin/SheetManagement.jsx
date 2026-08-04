@@ -523,7 +523,7 @@ export function SheetManagement() {
           alignItems: 'center',
           gap: 10,
           boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-          zIndex: 9999,
+          zIndex: 99999,
           animation: 'fadeIn 0.2s ease-out'
         }}>
           {backupMessage && <><Icon name="check" size={16} style={{ color: '#5cce9d' }} /><span style={{ color: '#5cce9d', fontSize: 13, fontWeight: 600 }}>{backupMessage}</span></>}
