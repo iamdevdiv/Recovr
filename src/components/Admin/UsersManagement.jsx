@@ -54,8 +54,8 @@ export function UsersManagement() {
     { id: 'workbooks', label: 'Workbooks' },
     { id: 'allocation', label: 'Allocation' },
     { id: 'referencing', label: 'Data Referencing' },
-    { id: 'users', label: 'Users' },
-    { id: 'backups', label: 'Backups' }
+    { id: 'backups', label: 'Backups' },
+    { id: 'users', label: 'Users' }
   ]
 
   useEffect(() => {
