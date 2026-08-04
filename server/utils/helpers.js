@@ -11,6 +11,43 @@ export function getEmployeeIdFromReq(req) {
   const payload = verifyJwt(token)
   return payload ? payload.employeeId : null
 }
+export async function filterCasesByFosPermission(employeeId, collectionId, sheetName, cases) {
+  if (!employeeId) return cases;
+  const user = await User.findOne({ employeeId }).lean();
+  if (!user) return cases;
+
+  // We enforce FOS permissions for Admins and Managers via their visibleTags.
+  // Field Employees might only see their assigned cases natively elsewhere, but this can safely apply to all roles 
+  // if their visibleTags are configured.
+  const wbPerm = (user.permissions || {})[collectionId] || {};
+  const sheetPerm = (wbPerm.sheets || {})[sheetName] || {};
+  const visibleTags = new Set(sheetPerm.visibleTags || []);
+
+  const collection = await Collection.findById(collectionId).lean();
+  if (!collection) return cases;
+  const sheet = collection.sheets.find(s => s.name === sheetName);
+  if (!sheet || !sheet.standardColumns) return cases;
+
+  const getSourceCol = (tag) => {
+    const col = sheet.standardColumns.find(c => c.tag === tag);
+    if (!col) return null;
+    const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === col.label);
+    return mapping ? mapping.sourceColumn : col.label;
+  };
+
+  const fosSourceCol = getSourceCol('FOS');
+
+  // If there's an FOS column and the user has explicit tags selected, filter.
+  // If visibleTags is empty, it acts like they see everything (this matches the current generateExcelForAdmin behavior).
+  if (fosSourceCol && visibleTags.size > 0) {
+    return cases.filter(c => {
+      const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim();
+      return fosVal === '' || visibleTags.has(fosVal);
+    });
+  }
+
+  return cases;
+}
 
 export async function getDistinctFosNames(collectionId, sheetName) {
   const collection = await Collection.findById(collectionId);

@@ -2,7 +2,7 @@ import express from 'express'
 import { User } from '../models/User.js'
 import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
-import { getEmployeeIdFromReq } from '../utils/helpers.js'
+import { getEmployeeIdFromReq, filterCasesByFosPermission } from '../utils/helpers.js'
 import { buildAndWriteExcel } from '../utils/excelFormatter.js'
 import { collectionsDir } from '../utils/uploadConfig.js'
 import path from 'node:path'
@@ -108,31 +108,15 @@ export async function generateExcelForAdmin(collectionId, user) {
   }
 
   const sheetsPayload = []
-
-  const wbPerm = (user.permissions || {})[collectionId] || {}
-
   for (const [sName, sheetCases] of sheetGroups.entries()) {
     const sheetDef = collection.sheets?.find((s) => s.name === sName)
     if (!sheetDef || !sheetDef.standardColumns?.length) continue
-
-    const sheetPerm = (wbPerm.sheets || {})[sName] || {}
-    const visibleTags = new Set(sheetPerm.visibleTags || [])
-    const getSourceCol = (tag) => {
-      const col = sheetDef.standardColumns.find(c => c.tag === tag)
-      if (!col) return null
-      const mapping = (sheetDef.lastMapping || []).find(m => m.standardLabel === col.label)
-      return mapping ? mapping.sourceColumn : col.label
-    }
-    const fosSourceCol = getSourceCol('FOS')
 
     const sheetMappingMap = new Map((sheetDef.lastMapping || []).map((m) => [m.standardLabel, m.sourceColumn]))
     const sheetOrdered = [...sheetDef.standardColumns].sort((a, b) => a.order - b.order)
     const headers = sheetOrdered.map((c) => c.label)
 
-    const filteredCases = (fosSourceCol && visibleTags.size > 0) ? sheetCases.filter(c => {
-      const fosVal = String(c.rawData?.[fosSourceCol] ?? '').trim()
-      return fosVal === '' || visibleTags.has(fosVal)
-    }) : sheetCases
+    const filteredCases = await filterCasesByFosPermission(user.employeeId, collectionId, sName, sheetCases)
 
     const rows = filteredCases.map((c) => {
       const row = {}
