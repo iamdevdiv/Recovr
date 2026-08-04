@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../Shared.jsx'
-import { useDragSort } from './useDragSort.js'
+import { useDragSort } from '../../hooks/useDragSort.js'
 import { useDownloadWorkbook } from '../../hooks/useDownloadWorkbook.js'
 
 export function Mapping() {
@@ -255,7 +255,7 @@ export function Mapping() {
             })
           })()}
         </div>
-        {genError && <p className="form-error" style={{ margin: '12px 0 0' }}>{genError}</p>}
+
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button className="outlined-button" onClick={() => setStdCols((p) => [...p, { label: '', order: nextOrder.current++, sourceColumn: '' }])}>
             <Icon name="plus" size={14} /> Add column
@@ -265,6 +265,26 @@ export function Mapping() {
           </button>
         </div>
       </section>
+      {genError && (
+        <div style={{
+          position: 'fixed',
+          bottom: 32,
+          right: 32,
+          background: '#181818',
+          border: '1px solid #252525',
+          borderRadius: 8,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <Icon name="close" size={16} style={{ color: '#e88080' }} />
+          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{genError}</span>
+        </div>
+      )}
     </div>
   )
 }

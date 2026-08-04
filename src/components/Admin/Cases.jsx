@@ -453,7 +453,7 @@ function InlineQuickEdit({ caseData, onUpdate, testMode, masterMode }) {
 
       {/* Clear Date Confirmation Modal */}
       {showClearConfirm && (
-        <div className="modal-backdrop" onClick={e => { e.stopPropagation(); setShowClearConfirm(false); }} style={{ zIndex: 9999 }}>
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowClearConfirm(false)}>
           <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }} onClick={e => e.stopPropagation()}>
             <button className="close-button" type="button" onClick={() => setShowClearConfirm(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow" style={{ color: '#e88080' }}>CLEAR DATE</span>

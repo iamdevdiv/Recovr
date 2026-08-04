@@ -200,7 +200,6 @@ export function TaggingManagement({ collectionId, sheetName, availableColumns, s
         </div>
       </div>
 
-      {saveError && <p className="form-error" style={{ marginTop: 12 }}>{saveError}</p>}
 
       {saveState !== 'idle' && (
         <div style={{
@@ -220,7 +219,7 @@ export function TaggingManagement({ collectionId, sheetName, availableColumns, s
         }}>
           {saveState === 'saving' && <><Icon name="spinner" size={16} className="spin-icon" /><span style={{ color: '#777777', fontSize: 13, fontWeight: 600 }}>Saving changes...</span></>}
           {saveState === 'saved' && <><Icon name="check" size={16} style={{ color: '#5cce9d' }} /><span style={{ color: '#5cce9d', fontSize: 13, fontWeight: 600 }}>All tags saved</span></>}
-          {saveState === 'error' && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>Error saving tags</span></>}
+          {saveState === 'error' && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{saveError || 'Error saving tags'}</span></>}
         </div>
       )}
     </div>

@@ -33,10 +33,30 @@ export function Login({ credentials, setCredentials, login, loginError }) {
             <input type="checkbox" style={{ width: 'auto' }} checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
             Remember me for 30 days
           </label>
-          {loginError && <p className="form-error">{loginError}</p>}
+
           <button className="primary-button" type="submit">Sign in <Icon name="arrow" /></button>
         </form>
       </section>
+      {loginError && (
+        <div style={{
+          position: 'fixed',
+          bottom: 32,
+          right: 32,
+          background: '#111111',
+          border: '1px solid #252525',
+          borderRadius: 8,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          zIndex: 1000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <Icon name="close" size={16} style={{ color: '#e88080' }} />
+          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{loginError}</span>
+        </div>
+      )}
     </main>
   )
 }

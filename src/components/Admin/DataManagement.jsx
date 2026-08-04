@@ -260,7 +260,7 @@ export function DataManagement({ collectionId, sheetName, availableColumns }) {
       </div>
 
       {previewModalOpen && (
-        <div className="modal-backdrop" onClick={() => setPreviewModalOpen(false)} style={{ zIndex: 9999 }}>
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setPreviewModalOpen(false)}>
           <div className="modal" style={{ width: '80%', height: '80%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 18, color: '#eeeeee' }}>Preview Details</h3>
