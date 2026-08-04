@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 export function useDownloadWorkbook() {
   const [progress, setProgress] = useState(null); // null means idle, number is percentage
+  const [error, setError] = useState('');
 
   const download = async (colId) => {
     try {
@@ -54,10 +55,11 @@ export function useDownloadWorkbook() {
       setTimeout(() => setProgress(null), 800);
     } catch (err) {
       console.error(err);
-      alert('Failed to download workbook.');
+      setError(err.message || 'Failed to download workbook.');
       setProgress(null);
+      setTimeout(() => setError(''), 4000);
     }
   };
 
-  return { download, progress };
+  return { download, progress, error, setError };
 }

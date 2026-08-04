@@ -5,7 +5,7 @@ import { DataManagement } from './DataManagement.jsx'
 import { TaggingManagement } from './TaggingManagement.jsx'
 import { useDownloadWorkbook } from '../../hooks/useDownloadWorkbook.js'
 export function SheetManagement() {
-  const { download: downloadWb, progress: downloadProgress } = useDownloadWorkbook()
+  const { download: downloadWb, progress: downloadProgress, error: downloadError } = useDownloadWorkbook()
   const [collections, setCollections] = useState([])
   const [selectedColId, setSelectedColId] = useState('')
   const [selectedSheetName, setSelectedSheetName] = useState('')
@@ -510,7 +510,7 @@ export function SheetManagement() {
       )}
 
       {/* Toast Notification */}
-      {(backupMessage || fetchError || saveError || deleteError || deleteSheetError || backupError) && (
+      {(backupMessage || fetchError || saveError || deleteError || deleteSheetError || backupError || downloadError) && (
         <div style={{
           position: 'fixed',
           bottom: 32,
@@ -527,7 +527,7 @@ export function SheetManagement() {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           {backupMessage && <><Icon name="check" size={16} style={{ color: '#5cce9d' }} /><span style={{ color: '#5cce9d', fontSize: 13, fontWeight: 600 }}>{backupMessage}</span></>}
-          {(fetchError || saveError || deleteError || deleteSheetError || backupError) && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError || saveError || deleteError || deleteSheetError || backupError}</span></>}
+          {(fetchError || saveError || deleteError || deleteSheetError || backupError || downloadError) && <><Icon name="close" size={16} style={{ color: '#e88080' }} /><span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError || saveError || deleteError || deleteSheetError || backupError || downloadError}</span></>}
         </div>
       )}
 

@@ -18,7 +18,7 @@ const formatPreviewValue = (val) => {
 }
 
 export function DataReferencing() {
-  const { download: downloadWb, progress: downloadProgress } = useDownloadWorkbook()
+  const { download: downloadWb, progress: downloadProgress, error: downloadError } = useDownloadWorkbook()
   const [collections, setCollections] = useState([])
   const [references, setReferences] = useState([])
   const [loadingCollections, setLoadingCollections] = useState(true)
@@ -1052,7 +1052,7 @@ export function DataReferencing() {
         </div>
       )}
 
-      {fetchError && (
+      {(fetchError || downloadError) && (
         <div style={{
           position: 'fixed',
           bottom: 32,
@@ -1069,7 +1069,7 @@ export function DataReferencing() {
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <Icon name="close" size={16} style={{ color: '#e88080' }} />
-          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError}</span>
+          <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{fetchError || downloadError}</span>
         </div>
       )}
     </div>

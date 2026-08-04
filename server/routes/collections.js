@@ -888,7 +888,7 @@ router.get('/:id/download', async (req, res) => {
   if (!employeeId) return res.status(401).json({ message: 'Unauthorized.' })
 
   const user = await User.findOne({ employeeId })
-  if (!user || user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden. Only admins can download workbooks.' })
+  if (!user || (user.role !== 'Admin' && user.role !== 'Manager')) return res.status(403).json({ message: 'Forbidden. Only admins and managers can download workbooks.' })
 
   let result = await generateExcelForAdmin(req.params.id, user)
   let isTemp = true
