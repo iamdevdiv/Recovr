@@ -526,4 +526,24 @@ router.put('/cases/:id', async (req, res) => {
   res.json({ message: 'Case updated successfully', case: caseDoc });
 });
 
+router.delete('/cases/:id', async (req, res) => {
+  const employeeId = getEmployeeIdFromReq(req);
+  if (!employeeId) return res.status(401).json({ message: 'Unauthorized.' });
+
+  const user = await User.findOne({ employeeId });
+  if (!user || user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden.' });
+
+  const { id } = req.params;
+  const caseDoc = await Case.findById(id);
+  if (!caseDoc) return res.status(404).json({ message: 'Case not found.' });
+
+  const colId = caseDoc.collectionId;
+  await Case.findByIdAndDelete(id);
+
+  // Instantly reflect in final output Excel file
+  await generateExcelForCollection(colId);
+
+  res.json({ message: 'Case deleted successfully' });
+});
+
 export default router

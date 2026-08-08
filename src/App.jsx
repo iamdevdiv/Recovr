@@ -9,6 +9,7 @@ function App() {
   const [session, setSession]         = useState(() => localStorage.getItem('collectionAssistSession') || sessionStorage.getItem('collectionAssistSession'))
   const [credentials, setCredentials] = useState({ id: '', password: '' })
   const [loginError, setLoginError]   = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(() => !sessionStorage.getItem('collectionAssistToken') && !localStorage.getItem('collectionAssistToken'))
   const navigate = useNavigate()
   const location = useLocation()
@@ -66,6 +67,7 @@ function App() {
   async function login(event, rememberMe) {
     event.preventDefault()
     if (!/^[a-z0-9]+$/i.test(credentials.id) || !credentials.password) { setLoginError('Enter an alphanumeric employee ID and password.'); return }
+    setIsLoggingIn(true)
     try {
       const res  = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employeeId: credentials.id, password: credentials.password, rememberMe }) })
       const data = await res.json()
@@ -84,6 +86,8 @@ function App() {
       else navigate('/dashboard')
     } catch (err) {
       setLoginError(err.message === 'Failed to fetch' ? 'Server not reachable — make sure npm run server is running.' : err.message)
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -112,7 +116,7 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={!session ? <Login credentials={credentials} setCredentials={setCredentials} login={login} loginError={loginError} /> : <Navigate to={session === 'admin' ? '/admin/overview' : '/dashboard'} replace />} />
+      <Route path="/" element={!session ? <Login credentials={credentials} setCredentials={setCredentials} login={login} loginError={loginError} isLoggingIn={isLoggingIn} /> : <Navigate to={session === 'admin' ? '/admin/overview' : '/dashboard'} replace />} />
       <Route path="/admin/*" element={session === 'admin' ? <Admin onLogout={handleLogout} /> : <Navigate to="/" replace />} />
       <Route path="/dashboard/*" element={session ? <FieldDashboard onLogout={handleLogout} /> : <Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

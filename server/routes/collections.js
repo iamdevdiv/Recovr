@@ -94,6 +94,12 @@ router.get('/:id/sheets/:sheetName/count', async (req, res) => {
   return res.json({ count })
 })
 
+router.get('/:id/sheets/:sheetName/loan-numbers', async (req, res) => {
+  const cases = await Case.find({ collectionId: req.params.id, sheetName: req.params.sheetName }, { loanNumber: 1, _id: 0 }).lean()
+  const loanNumbers = cases.map(c => c.loanNumber).filter(Boolean)
+  return res.json({ loanNumbers })
+})
+
 router.post('/preview', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file received.' })
   let parsed
@@ -134,17 +140,21 @@ router.post('/import-count', async (req, res) => {
 
   let newCasesCount = rows.length
   let overlapCount = 0
+  let existingSheetCount = 0
 
-  if (collectionId && targetSheetName && keyCol) {
-    const incomingKeys = rows.map(r => String(r[keyCol] ?? '').trim()).filter(Boolean)
-    if (incomingKeys.length > 0) {
-      const existingCases = await Case.find({ collectionId, sheetName: targetSheetName, loanNumber: { $in: incomingKeys } }).select('loanNumber').lean()
-      overlapCount = existingCases.length
-      newCasesCount = incomingKeys.length - overlapCount
+  if (collectionId && targetSheetName) {
+    existingSheetCount = await Case.countDocuments({ collectionId, sheetName: targetSheetName })
+    if (keyCol) {
+      const incomingKeys = rows.map(r => String(r[keyCol] ?? '').trim()).filter(Boolean)
+      if (incomingKeys.length > 0) {
+        const existingCases = await Case.find({ collectionId, sheetName: targetSheetName, loanNumber: { $in: incomingKeys } }).select('loanNumber').lean()
+        overlapCount = existingCases.length
+        newCasesCount = incomingKeys.length - overlapCount
+      }
     }
   }
 
-  return res.json({ count: rows.length, newCases: newCasesCount, overlapCount })
+  return res.json({ count: rows.length, newCases: newCasesCount, overlapCount, existingSheetCount })
 })
 
 router.post('/import', async (req, res) => {
@@ -170,7 +180,9 @@ router.post('/import', async (req, res) => {
   const user = employeeId ? await User.findOne({ employeeId }) : null
 
   const isNewSheetCreation = targetSheetName && !collection.sheets.some((s) => s.name === targetSheetName)
-  await createBackup(collectionId, `Before import to ${targetSheetName}`, 'auto', user?._id)
+  if (collection.sheets.length > 0) {
+    await createBackup(collectionId, `Before import to ${targetSheetName}`, 'auto', user?._id)
+  }
 
   const tempPath = path.join(tempDir, tempId)
   if (!fs.existsSync(tempPath)) {
@@ -273,6 +285,10 @@ router.post('/import', async (req, res) => {
 
   await createBackup(collectionId, `After import to ${targetSheetName}`, 'auto', user?._id)
 
+  const importedLoanNumbers = result.upsertedIds 
+    ? Object.keys(result.upsertedIds).map(idx => ops[idx].updateOne.filter.loanNumber)
+    : []
+
   return res.json({
     message: 'Import complete.',
     collection: { _id: collection._id, name: collection.name, numericId: collection.numericId },
@@ -280,6 +296,7 @@ router.post('/import', async (req, res) => {
     imported: result.upsertedCount,
     updated: result.modifiedCount,
     newCaseIds: Object.values(result.upsertedIds || {}),
+    importedLoanNumbers,
     sheetTotal,
     overallTotal: totalCases,
     genResult,
@@ -287,9 +304,10 @@ router.post('/import', async (req, res) => {
 })
 
 router.post('/:id/generate', async (req, res) => {
-  const { tempId, standardColumns, mapping, newCaseIds = [], sheetName, isNewWorkbook } = req.body
-  if (!standardColumns?.length || !mapping?.length || !sheetName) {
-    return res.status(400).json({ message: 'standardColumns, mapping, and sheetName are required.' })
+  const { tempId, standardColumns, mapping, newCaseIds = [], sheetNames, isNewWorkbook, isNewSheet } = req.body
+  const targetSheets = sheetNames || []
+  if (!standardColumns?.length || !mapping?.length || targetSheets.length === 0 || !targetSheets[0]) {
+    return res.status(400).json({ message: 'standardColumns, mapping, and at least one sheetName are required.' })
   }
 
   const collection = await Collection.findById(req.params.id)
@@ -299,7 +317,9 @@ router.post('/:id/generate', async (req, res) => {
   const user = employeeId ? await User.findOne({ employeeId }) : null
 
   // Backup before change
-  await createBackup(req.params.id, `Before column mapping generation for ${sheetName}`, 'auto', user?._id)
+  if (!isNewWorkbook && collection.sheets.length > 0) {
+    await createBackup(req.params.id, `Before column mapping generation for ${targetSheets.join(', ')}`, 'auto', user?._id)
+  }
 
   const finalMapping = []
   const customUpdates = {}
@@ -320,51 +340,59 @@ router.post('/:id/generate', async (req, res) => {
     )
   }
 
-  let sheetIdx = collection.sheets.findIndex(s => s.name === sheetName)
+  const oldStandardColumnsMap = {}
+  
+  for (const sName of targetSheets) {
+    let sheetIdx = collection.sheets.findIndex(s => s.name === sName)
+    
+    const finalStandardColumns = standardColumns.map(sc => {
+      let tag = sc.tag;
+      if (!tag && sheetIdx !== -1) {
+        const existing = collection.sheets[sheetIdx].standardColumns.find(c => c.label === sc.label);
+        if (existing && existing.tag) tag = existing.tag;
+      }
+      return { ...sc, tag };
+    });
 
-  const finalStandardColumns = standardColumns.map(sc => {
-    let tag = sc.tag;
-    if (!tag && sheetIdx !== -1) {
-      const existing = collection.sheets[sheetIdx].standardColumns.find(c => c.label === sc.label);
-      if (existing && existing.tag) tag = existing.tag;
-    }
-    return { ...sc, tag };
-  });
+    if (isNewWorkbook || isNewSheet) {
+      const untaggedCols = finalStandardColumns.filter(sc => !sc.tag).map(sc => sc.label);
+      if (untaggedCols.length > 0) {
+        const sampleCase = await Case.findOne({ collectionId: req.params.id, sheetName: sName }).lean();
+        const sampleData = sampleCase ? sampleCase.rawData : {};
+        const usedTags = new Set(finalStandardColumns.filter(sc => sc.tag).map(sc => sc.tag));
+        const aiAvailableTags = TAGS.filter(t => t === 'Reference name' || t === 'Reference mobile' || !usedTags.has(t));
+        const aiMappings = await autoTagColumnsWithAI(untaggedCols, aiAvailableTags, sampleData);
 
-  if (isNewWorkbook) {
-    const untaggedCols = finalStandardColumns.filter(sc => !sc.tag).map(sc => sc.label);
-    if (untaggedCols.length > 0) {
-      const sampleCase = await Case.findOne({ collectionId: req.params.id, sheetName: sheetName }).lean();
-      const sampleData = sampleCase ? sampleCase.rawData : {};
-      const usedTags = new Set(finalStandardColumns.filter(sc => sc.tag).map(sc => sc.tag));
-      const aiAvailableTags = TAGS.filter(t => t === 'Reference name' || t === 'Reference mobile' || !usedTags.has(t));
-      const aiMappings = await autoTagColumnsWithAI(untaggedCols, aiAvailableTags, sampleData);
-
-      for (const sc of finalStandardColumns) {
-        if (!sc.tag && aiMappings[sc.label]) {
-          const proposedTag = aiMappings[sc.label];
-          if (proposedTag !== 'Reference name' && proposedTag !== 'Reference mobile' && usedTags.has(proposedTag)) {
-            continue;
+        for (const sc of finalStandardColumns) {
+          if (!sc.tag && aiMappings[sc.label]) {
+            const proposedTag = aiMappings[sc.label];
+            if (proposedTag !== 'Reference name' && proposedTag !== 'Reference mobile' && usedTags.has(proposedTag)) {
+              continue;
+            }
+            sc.tag = proposedTag;
+            usedTags.add(proposedTag);
           }
-          sc.tag = proposedTag;
-          usedTags.add(proposedTag);
         }
       }
     }
+
+    const oldStandardColumns = sheetIdx !== -1 ? collection.sheets[sheetIdx].standardColumns.map(sc => sc.toObject()) : []
+    oldStandardColumnsMap[sName] = oldStandardColumns
+
+    if (sheetIdx !== -1) {
+      collection.sheets[sheetIdx].set('standardColumns', finalStandardColumns)
+      collection.sheets[sheetIdx].set('lastMapping', finalMapping)
+    } else {
+      collection.sheets.push({ name: sName, standardColumns: finalStandardColumns, lastMapping: finalMapping })
+    }
   }
 
-  const oldStandardColumns = sheetIdx !== -1 ? collection.sheets[sheetIdx].standardColumns.map(sc => sc.toObject()) : []
-
-  if (sheetIdx !== -1) {
-    collection.sheets[sheetIdx].set('standardColumns', finalStandardColumns)
-    collection.sheets[sheetIdx].set('lastMapping', finalMapping)
-  } else {
-    collection.sheets.push({ name: sheetName, standardColumns: finalStandardColumns, lastMapping: finalMapping })
-  }
   collection.markModified('sheets')
   await collection.save()
 
-  await pushNewDefaultTagsToUsers(req.params.id, sheetName, oldStandardColumns, finalStandardColumns)
+  for (const sName of targetSheets) {
+    await pushNewDefaultTagsToUsers(req.params.id, sName, oldStandardColumnsMap[sName], collection.sheets.find(s => s.name === sName).standardColumns)
+  }
 
   const result = await generateExcelForCollection(req.params.id)
   if (!result) return res.status(422).json({ message: 'Failed to generate Excel.' })
@@ -373,12 +401,14 @@ router.post('/:id/generate', async (req, res) => {
     try { fs.unlinkSync(path.join(tempDir, tempId)) } catch { /* ignore */ }
   }
 
-  const fosNames = await getDistinctFosNames(req.params.id, sheetName)
   const employeeIdForPerms = getEmployeeIdFromReq(req)
-  await autoEnablePermissions(req.params.id, sheetName, fosNames, employeeIdForPerms)
+  for (const sName of targetSheets) {
+    const fosNames = await getDistinctFosNames(req.params.id, sName)
+    await autoEnablePermissions(req.params.id, sName, fosNames, employeeIdForPerms)
+  }
 
   // Backup after change
-  await createBackup(req.params.id, `After column mapping generation for ${sheetName}`, 'auto', user?._id)
+  await createBackup(req.params.id, `After column mapping generation for ${targetSheets.join(', ')}`, 'auto', user?._id)
 
   return res.json({ message: 'Excel generated successfully.', rowCount: result.rowCount, fileName: `${collection._id}.xlsx` })
 })
@@ -849,6 +879,70 @@ router.get('/:id/download', async (req, res) => {
       }
     }
   })
+})
+
+router.put('/:id/rename', async (req, res) => {
+  const { newName } = req.body
+  if (!newName?.trim()) return res.status(400).json({ message: 'New name is required.' })
+
+  const collection = await Collection.findById(req.params.id)
+  if (!collection) return res.status(404).json({ message: 'Collection not found.' })
+
+  const oldName = collection.name
+  const employeeId = getEmployeeIdFromReq(req)
+  const user = employeeId ? await User.findOne({ employeeId }) : null
+
+  collection.name = newName.trim()
+  await collection.save()
+
+  await createBackup(req.params.id, 'Workbook renamed', 'auto', user?._id, {
+    structuralChanges: [`Renamed workbook from '${oldName}' to '${newName.trim()}'`],
+    addedCases: 0,
+    deletedCases: 0,
+    changes: []
+  })
+
+  return res.json({ message: 'Workbook renamed successfully.', collection })
+})
+
+router.put('/:id/sheet/:sheetName/rename', async (req, res) => {
+  const { newName } = req.body
+  const { id, sheetName: oldName } = req.params
+  if (!newName?.trim()) return res.status(400).json({ message: 'New name is required.' })
+  const finalNewName = newName.trim()
+
+  const collection = await Collection.findById(id)
+  if (!collection) return res.status(404).json({ message: 'Collection not found.' })
+
+  const sheetIdx = collection.sheets.findIndex(s => s.name === oldName)
+  if (sheetIdx === -1) return res.status(404).json({ message: `Sheet "${oldName}" not found.` })
+
+  if (collection.sheets.some(s => s.name === finalNewName)) {
+    return res.status(400).json({ message: 'A sheet with this name already exists in this workbook.' })
+  }
+
+  const employeeId = getEmployeeIdFromReq(req)
+  const user = employeeId ? await User.findOne({ employeeId }) : null
+
+  collection.sheets[sheetIdx].name = finalNewName
+  collection.markModified('sheets')
+  await collection.save()
+
+  await Case.updateMany(
+    { collectionId: id, sheetName: oldName },
+    { $set: { sheetName: finalNewName } }
+  )
+
+  await generateExcelForCollection(id)
+
+  await createBackup(id, 'Sheet renamed', 'auto', user?._id, {
+    structuralChanges: [`Renamed sheet from '${oldName}' to '${finalNewName}'`],
+    addedCases: 0,
+    deletedCases: 0,
+    changes: []
+  })
+
+  return res.json({ message: 'Sheet renamed successfully.', collection })
 })
 
 export default router

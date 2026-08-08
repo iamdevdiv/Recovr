@@ -40,11 +40,17 @@ export function Backups() {
   const [expandedPreviewCases, setExpandedPreviewCases] = useState(new Set())
   const [selectedBackups, setSelectedBackups] = useState(new Set())
 
-  useEffect(() => {
+  const fetchCollections = async () => {
     const token = localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''
-    fetch('/api/collections', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => setCollections(d.collections ?? []))
+    try {
+      const r = await fetch('/api/collections', { headers: { 'Authorization': `Bearer ${token}` } })
+      const d = await r.json()
+      setCollections(d.collections ?? [])
+    } catch (err) {}
+  }
+
+  useEffect(() => {
+    fetchCollections()
   }, [])
 
   useEffect(() => {
@@ -91,6 +97,7 @@ export function Backups() {
       if (!res.ok) throw new Error(data.message || 'Failed to restore')
       setActionState({ id: backupId, loading: false, message: 'Restore successful!', error: '' })
       loadBackups()
+      fetchCollections()
       setTimeout(() => setActionState(prev => prev.id === backupId ? { ...prev, message: '' } : prev), 3000)
     } catch (err) {
       setActionState({ id: backupId, loading: false, message: '', error: err.message })

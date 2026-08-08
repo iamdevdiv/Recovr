@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Icon } from './Shared.jsx'
 
-export function Login({ credentials, setCredentials, login, loginError }) {
+export function Login({ credentials, setCredentials, login, loginError, isLoggingIn }) {
   const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -34,7 +34,9 @@ export function Login({ credentials, setCredentials, login, loginError }) {
             Remember me for 30 days
           </label>
 
-          <button className="primary-button" type="submit">Sign in <Icon name="arrow" /></button>
+          <button className="primary-button" type="submit" disabled={isLoggingIn}>
+            {isLoggingIn ? <><Icon name="spinner" size={16} className="spin-icon" /> Signing in…</> : <>Sign in <Icon name="arrow" /></>}
+          </button>
         </form>
       </section>
       {loginError && (

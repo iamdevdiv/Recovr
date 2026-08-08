@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Icon, CaseAdditionalDetails } from '../Shared.jsx'
 import { useDownloadWorkbook } from '../../hooks/useDownloadWorkbook.js'
@@ -32,6 +32,7 @@ export function DataReferencing() {
 
   const [refFile, setRefFile] = useState(null)
   const [label, setLabel] = useState('')
+  const refFileInputRef = useRef(null)
 
   const [inputType, setInputType] = useState('reference')
   const [manualInputText, setManualInputText] = useState('')
@@ -266,6 +267,7 @@ export function DataReferencing() {
     const sRes = await fetch('/api/lots/references', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ tempId: pData.tempId, label, sheets: pData.sheets }) })
     if (sRes.ok) {
       setRefFile(null); setLabel(''); loadRefs(); setUploadMessage('Reference saved successfully!')
+      if (refFileInputRef.current) refFileInputRef.current.value = ''
       setTimeout(() => setUploadMessage(''), 4000)
     } else {
       const e = await sRes.json()
@@ -962,7 +964,7 @@ export function DataReferencing() {
       <section className="panel" style={{ padding: 22, marginTop: 40, borderStyle: 'dashed' }}>
         <h2>Upload new reference file</h2>
         <div className="ref-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 20, alignItems: 'end', marginTop: 15 }}>
-          <label style={{ margin: 0, display: 'grid', gap: 8, color: '#cccccc', fontSize: 12, fontWeight: 700 }}>Reference File<input type="file" accept=".xlsx,.xls" onChange={(e) => setRefFile(e.target.files[0])} style={{ height: '40px', padding: '7px 12px', boxSizing: 'border-box' }} /></label>
+          <label style={{ margin: 0, display: 'grid', gap: 8, color: '#cccccc', fontSize: 12, fontWeight: 700 }}>Reference File<input ref={refFileInputRef} type="file" accept=".xlsx,.xls" onChange={(e) => setRefFile(e.target.files[0])} style={{ height: '40px', padding: '7px 12px', boxSizing: 'border-box' }} /></label>
           <label style={{ margin: 0, display: 'grid', gap: 8, color: '#cccccc', fontSize: 12, fontWeight: 700 }}>Label<input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. IDFC Sept 2025" style={{ height: '40px', padding: '0 12px', boxSizing: 'border-box' }} /></label>
           <button className="outlined-button" onClick={uploadRef} disabled={!refFile || !label} style={{ height: '40px', boxSizing: 'border-box' }}>Save Reference</button>
         </div>

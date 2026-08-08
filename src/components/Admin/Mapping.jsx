@@ -63,8 +63,9 @@ export function Mapping() {
         body: JSON.stringify({ 
           tempId: ctx.tempId, 
           newCaseIds: ctx.newCaseIds, 
-          sheetName: ctx.targetSheetName || 'Sheet1',
+          sheetNames: ctx.targetSheetNames || [],
           isNewWorkbook: ctx.colMode === 'new',
+          isNewSheet: ctx.isNewSheet || false,
           standardColumns: validCols.map((c, i) => ({ label: c.label.trim(), order: i })), 
           mapping: validCols.filter((c) => c.sourceColumn).map((c) => ({ 
             sourceColumn: c.sourceColumn === '__CUSTOM__' || c.sourceColumn === '__CUSTOM_DATE__' ? '' : c.sourceColumn, 
@@ -90,17 +91,23 @@ export function Mapping() {
             <span className="success-icon"><Icon name="check" size={24} /></span>
             <h2>Excel generated!</h2>
 
-            {(newAdded != null || sheetTotal != null) && (
-              <p style={{ margin: '10px 0 24px', fontSize: 13, color: '#777777' }}>
-                {newAdded != null && (
-                  <><em style={{ fontStyle: 'normal', color: '#252525', fontWeight: 700 }}>{newAdded}</em> new cases added</>
-                )}
-                {newAdded != null && sheetTotal != null && <>&nbsp;·&nbsp;</>}
-                {sheetTotal != null && (
-                  <><em style={{ fontStyle: 'normal', color: '#cccccc' }}>{sheetTotal}</em> total in sheet</>
-                )}
-              </p>
-            )}
+            {ctx?.importSummaries?.map((summary, idx) => {
+              const { sheetName, imported: newAdded, sheetTotal } = summary
+              if (newAdded == null && sheetTotal == null) return null
+              return (
+                <div key={idx} style={{ margin: '10px 0', fontSize: 13, color: '#777777' }}>
+                  <strong style={{ color: '#cccccc', marginRight: 8 }}>{sheetName}:</strong>
+                  {newAdded != null && (
+                    <><em style={{ fontStyle: 'normal', color: '#6be2c7', fontWeight: 700 }}>{newAdded}</em> new cases added</>
+                  )}
+                  {newAdded != null && sheetTotal != null && <>&nbsp;·&nbsp;</>}
+                  {sheetTotal != null && (
+                    <><em style={{ fontStyle: 'normal', color: '#cccccc' }}>{sheetTotal}</em> total in sheet</>
+                  )}
+                </div>
+              )
+            })}
+            <div style={{ marginBottom: 24 }} />
             <div className="mapping-done-actions">
               <a className="primary-button" style={{ background: downloadProgress !== null ? `linear-gradient(to right, #419b74 ${downloadProgress}%, #5cce9d ${downloadProgress}%)` : '#5cce9d', color: '#08201d', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', boxSizing: 'border-box', cursor: downloadProgress !== null ? 'wait' : 'pointer', pointerEvents: downloadProgress !== null ? 'none' : 'auto' }} onClick={(e) => {
                 e.preventDefault();

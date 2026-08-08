@@ -310,7 +310,7 @@
   font-size: 9px;
   font-weight: 800;
   font-family: 'DM Mono', monospace;
-  padding: 2px 5px 1px 5px;
+  padding: 2px 5px 2px 5px;
   border-radius: 3px;
   color: #111111;
   opacity: .9;
@@ -318,7 +318,7 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  line-height: 1;
+  line-height: normal;
 }
 
 .ac-mode-test-on .ac-mode-on-badge {

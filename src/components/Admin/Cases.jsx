@@ -481,6 +481,27 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
   const [expanded, setExpanded] = useState(false)
   const [copiedLoan, setCopiedLoan] = useState(false)
   const [copiedName, setCopiedName] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  async function confirmDelete(e) {
+    e.stopPropagation()
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      const res = await fetch(`/api/admin/cases/${caseData._id}`, { method: 'DELETE', headers: authHeaders() })
+      if (res.ok) {
+        onUpdate(caseData._id, { _deleted: true }, false)
+      } else {
+        const err = await res.json()
+        setDeleteError(err.message || 'Unknown error deleting case')
+      }
+    } catch(err) {
+      setDeleteError('Network error deleting case')
+    }
+    setDeleting(false)
+  }
 
   const td = caseData.tagData || {}
   const statusRaw = String(td['Status'] || '').trim()
@@ -699,7 +720,38 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
             <span className={`fos-status-pill ${statusPillClass}`}>{statusRaw || 'N/A'}</span>
           </div>
 
-          <div className="ac-row-expand-btn">
+          <div className="ac-row-expand-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {masterMode && (localStorage.getItem('collectionAssistRole') || sessionStorage.getItem('collectionAssistRole')) === 'Admin' && (
+              <>
+                <button 
+                  className="fos-copy-btn-small" 
+                  style={{ color: '#e88080' }} 
+                  title="Delete this case" 
+                  onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+                {showDeleteConfirm && (
+                  <div className="modal-backdrop" onClick={e => { e.stopPropagation(); if (e.target === e.currentTarget) setShowDeleteConfirm(false) }}>
+                    <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }} onClick={e => e.stopPropagation()}>
+                      <button className="close-button" type="button" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}><Icon name="close" size={20} /></button>
+                      <span className="eyebrow" style={{ color: '#e88080' }}>DELETE CASE</span>
+                      <h2 style={{ marginBottom: 12 }}>Permanently Delete Case?</h2>
+                      <p style={{ margin: 0, color: '#888888', fontSize: 13, lineHeight: 1.5 }}>
+                        Are you sure you want to completely delete case <strong>{loanNo}</strong>? This will remove it from the database and the output Excel file. This action cannot be undone.
+                      </p>
+                      {deleteError && <div className="fos-error ac-error" style={{ marginTop: 12, padding: 8, fontSize: 12 }}>{deleteError}</div>}
+                      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                        <button type="button" className="outlined-button" onClick={() => setShowDeleteConfirm(false)} style={{ flex: 1 }} disabled={deleting}>Cancel</button>
+                        <button type="button" className="primary-button" style={{ background: '#a13b3b', borderColor: '#a13b3b', flex: 1 }} onClick={confirmDelete} disabled={deleting}>
+                          {deleting ? 'Deleting...' : 'Delete Case'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={16} />
           </div>
         </div>
@@ -1175,6 +1227,11 @@ export function Cases() {
   }
 
   function handleCaseUpdate(caseId, updates, isTest) {
+    if (updates._deleted) {
+      setCases(prev => prev.filter(c => String(c._id) !== String(caseId)))
+      return
+    }
+
     setCases(prev => prev.map(c => {
       if (String(c._id) !== String(caseId)) return c
       return {

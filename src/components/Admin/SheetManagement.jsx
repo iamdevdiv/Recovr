@@ -36,6 +36,14 @@ export function SheetManagement() {
   const [manualBackupNote, setManualBackupNote] = useState('Manual backup')
   const [manualBackupLoading, setManualBackupLoading] = useState(false)
 
+  const [renameWbModal, setRenameWbModal] = useState(false)
+  const [renameWbName, setRenameWbName] = useState('')
+  const [renameWbError, setRenameWbError] = useState('')
+
+  const [renameSheetModal, setRenameSheetModal] = useState(false)
+  const [renameSheetName, setRenameSheetName] = useState('')
+  const [renameSheetError, setRenameSheetError] = useState('')
+
   useEffect(() => {
     const token = localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''
     fetch('/api/collections', {
@@ -143,6 +151,45 @@ export function SheetManagement() {
     }
   }
 
+  async function handleRenameWorkbook() {
+    if (!renameWbName.trim()) { setRenameWbError('Name is required'); return }
+    try {
+      const res = await fetch(`/api/collections/${selectedColId}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''}` },
+        body: JSON.stringify({ newName: renameWbName })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setCollections(prev => prev.map(c => c._id === selectedColId ? { ...c, name: renameWbName.trim() } : c))
+      setRenameWbModal(false)
+    } catch (err) {
+      setRenameWbError(err.message)
+    }
+  }
+
+  async function handleRenameSheet() {
+    if (!renameSheetName.trim()) { setRenameSheetError('Name is required'); return }
+    try {
+      const res = await fetch(`/api/collections/${selectedColId}/sheet/${selectedSheetName}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''}` },
+        body: JSON.stringify({ newName: renameSheetName })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setCollections(prev => prev.map(c => {
+        if (c._id !== selectedColId) return c
+        const updatedSheets = c.sheets.map(s => s.name === selectedSheetName ? { ...s, name: renameSheetName.trim() } : s)
+        return { ...c, sheets: updatedSheets }
+      }))
+      setSelectedSheetName(renameSheetName.trim())
+      setRenameSheetModal(false)
+    } catch (err) {
+      setRenameSheetError(err.message)
+    }
+  }
+
   async function confirmDeleteSheet() {
     if (confirmSheetName !== selectedSheetName) {
       setDeleteSheetError('Sheet name does not match.')
@@ -245,6 +292,13 @@ export function SheetManagement() {
               }}>
                 <Icon name="copy" size={14} /> Manual Backup
               </button>
+              <button className="outlined-button" style={{ color: '#e8c480', borderColor: '#8a6e4b' }} onClick={() => {
+                setRenameWbName(selectedCollection?.name || '')
+                setRenameWbError('')
+                setRenameWbModal(true)
+              }}>
+                <Icon name="pencil" size={14} /> Rename Workbook
+              </button>
               <button className="outlined-button" style={{ borderColor: '#8a4b4b', color: '#e88080' }} onClick={() => setDeleteModal(true)}>
                 <Icon name="trash" size={14} /> Delete Workbook
               </button>
@@ -265,9 +319,18 @@ export function SheetManagement() {
                   {availableSheets.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
                 </select>
                 {selectedSheetName && (
-                  <button className="outlined-button" style={{ borderColor: '#8a6e4b', color: '#e8c480' }} onClick={() => setDeleteSheetModal(true)}>
-                    <Icon name="trash" size={14} /> Delete Sheet
-                  </button>
+                  <>
+                    <button className="outlined-button" style={{ borderColor: '#8a6e4b', color: '#e8c480' }} onClick={() => {
+                      setRenameSheetName(selectedSheetName)
+                      setRenameSheetError('')
+                      setRenameSheetModal(true)
+                    }}>
+                      <Icon name="pencil" size={14} /> Rename Sheet
+                    </button>
+                    <button className="outlined-button" style={{ borderColor: '#8a4b4b', color: '#e88080' }} onClick={() => setDeleteSheetModal(true)}>
+                      <Icon name="trash" size={14} /> Delete Sheet
+                    </button>
+                  </>
                 )}
               </div>
             </label>
@@ -406,6 +469,70 @@ export function SheetManagement() {
           <DataManagement collectionId={selectedColId} sheetName={selectedSheetName} availableColumns={availableSheets.find((s) => s.name === selectedSheetName)?.standardColumns ?? []} />
         )}
       </section>
+
+      {/* Rename Workbook Modal */}
+      {renameWbModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setRenameWbModal(false)}>
+          <div className="modal">
+            <button className="close-button" onClick={() => setRenameWbModal(false)}><Icon name="close" size={20} /></button>
+            <span className="eyebrow" style={{ color: '#e8c480' }}>WORKBOOK CONFIGURATION</span>
+            <h2>Rename workbook</h2>
+            <p>Change the name of <strong>{selectedColName}</strong>.</p>
+            <div style={{ marginTop: 22 }}>
+              <label className="form-label">New Name
+                <input
+                  type="text"
+                  value={renameWbName}
+                  onChange={e => setRenameWbName(e.target.value)}
+                  style={{ marginTop: 8 }}
+                />
+              </label>
+
+              {renameWbError && <p style={{ color: '#e88080', fontSize: 13, marginTop: 10 }}>{renameWbError}</p>}
+
+              <button
+                className="primary-button"
+                style={{ width: '100%', marginTop: 16 }}
+                onClick={handleRenameWorkbook}
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Sheet Modal */}
+      {renameSheetModal && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setRenameSheetModal(false)}>
+          <div className="modal">
+            <button className="close-button" onClick={() => setRenameSheetModal(false)}><Icon name="close" size={20} /></button>
+            <span className="eyebrow" style={{ color: '#e8c480' }}>SHEET CONFIGURATION</span>
+            <h2>Rename sheet</h2>
+            <p>Change the name of sheet <strong>{selectedSheetName}</strong>.</p>
+            <div style={{ marginTop: 22 }}>
+              <label className="form-label">New Name
+                <input
+                  type="text"
+                  value={renameSheetName}
+                  onChange={e => setRenameSheetName(e.target.value)}
+                  style={{ marginTop: 8 }}
+                />
+              </label>
+
+              {renameSheetError && <p style={{ color: '#e88080', fontSize: 13, marginTop: 10 }}>{renameSheetError}</p>}
+
+              <button
+                className="primary-button"
+                style={{ width: '100%', marginTop: 16 }}
+                onClick={handleRenameSheet}
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (

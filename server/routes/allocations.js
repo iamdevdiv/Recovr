@@ -9,7 +9,7 @@ const router = express.Router()
 
 router.get('/workbooks', async (req, res) => {
   const employeeId = getEmployeeIdFromReq(req)
-  let collections = await Collection.find({ isWorkbook: true }).lean()
+  let collections = await Collection.find({ isWorkbook: true }).sort({ numericId: -1 }).lean()
   if (employeeId) {
     const user = await User.findOne({ employeeId })
     if (user && user.role === 'Manager') {

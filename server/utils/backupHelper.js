@@ -32,7 +32,7 @@ function buildTagData(c, sheet) {
   return tagData;
 }
 
-export async function createBackup(collectionId, note, type = 'auto', userId = null) {
+export async function createBackup(collectionId, note, type = 'auto', userId = null, customChangesDetail = null) {
   try {
     const collection = await Collection.findById(collectionId).lean()
     if (!collection) throw new Error('Collection not found')
@@ -43,10 +43,12 @@ export async function createBackup(collectionId, note, type = 'auto', userId = n
     
     let changesDetail = null
     
-    if (previousBackup && !note.startsWith('Before ')) {
+    if (customChangesDetail) {
+      changesDetail = customChangesDetail
+    } else if (!note.startsWith('Before ')) {
       changesDetail = { mode: 'auto-diff', changes: [], structuralChanges: [], addedCases: 0, deletedCases: 0, addedCaseList: [], deletedCaseList: [] }
       
-      const oldSheets = previousBackup.structure.sheets || []
+      const oldSheets = previousBackup?.structure?.sheets || []
       const newSheets = collection.sheets || []
       
       for (const ns of newSheets) {
@@ -71,7 +73,7 @@ export async function createBackup(collectionId, note, type = 'auto', userId = n
       }
 
       try {
-        const oldCasesData = await fs.readFile(previousBackup.casesFilePath, 'utf8')
+        const oldCasesData = previousBackup ? await fs.readFile(previousBackup.casesFilePath, 'utf8') : '[]'
         const oldCases = JSON.parse(oldCasesData)
         
         const oldMap = new Map(oldCases.map(c => [String(c._id), c]))

@@ -4,7 +4,7 @@ import { Icon } from '../Shared.jsx'
 // Default tags that should be visible by default (if the sheet has them)
 const DEFAULT_VISIBLE_TAGS = [
   'Address', 'Bucket', 'Customer Name', 'Dealer', 'EMI Amount', 'EMI End Date',
-  'EMI Start Date', 'Father Name', 'Loan No', 'Lot', 'Mobile number', 'New Case',
+  'EMI Start Date', 'Father Name', 'Loan No', 'Lot', 'Mailing Landmark', 'Mobile number', 'New Case',
   'PTP', 'Number of EMI Paid', 'POS', 'Previous Paid Date', 'Paid Date', 'Collected Amount',
   'Mode of Payment', 'Pin Code', 'Product', 'Reference mobile', 'Reference name', 
   'Reference name and mobile', 'Registration Number', 'Status', 'Tenure', 'Time', 'Vehicle'
@@ -29,6 +29,8 @@ export function UsersManagement() {
   const [role, setRole] = useState('Field Employee')
   const [fosIdentifier, setFosIdentifier] = useState('')
   const [formError, setFormError] = useState('')
+  const [showAddPassword, setShowAddPassword] = useState(false)
+  const [showEditPassword, setShowEditPassword] = useState(false)
 
   // Permissions state
   const [workbooks, setWorkbooks] = useState([])
@@ -127,6 +129,7 @@ export function UsersManagement() {
     setRole('Field Employee')
     setFosIdentifier('')
     setFormError('')
+    setShowAddPassword(false)
     setShowAddModal(true)
   }
 
@@ -138,6 +141,7 @@ export function UsersManagement() {
     setFosIdentifier(user.fosIdentifier || '')
     setPassword('')
     setFormError('')
+    setShowEditPassword(false)
     setShowEditModal(true)
   }
 
@@ -529,7 +533,7 @@ export function UsersManagement() {
                           <Icon name="shield" size={16} />
                         </button>
                       )}
-                      {currentUserRole === 'Admin' && user.role === 'Manager' ? (
+                      {currentUserRole === 'Admin' ? (
                         <button className="icon-button" title="Manage Modules" onClick={() => openModulesModal(user)}
                           style={{ color: '#5dade2' }}>
                           <Icon name="layers" size={16} />
@@ -583,13 +587,24 @@ export function UsersManagement() {
               </label>
               <label>
                 Password
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  required
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showAddPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    required
+                    style={{ paddingRight: 36, width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(p => !p)}
+                    tabIndex="-1"
+                    style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#777777', cursor: 'pointer', padding: 4, display: 'flex' }}
+                  >
+                    <Icon name={showAddPassword ? 'eye-off' : 'eye'} size={16} />
+                  </button>
+                </div>
               </label>
               <label>
                 Role
@@ -656,12 +671,23 @@ export function UsersManagement() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                   <span>New Password</span><span style={{ fontWeight: 'normal', color: '#777777' }}>(optional)</span>
                 </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Leave blank to keep current"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showEditPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Leave blank to keep current"
+                    style={{ paddingRight: 36, width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(p => !p)}
+                    tabIndex="-1"
+                    style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#777777', cursor: 'pointer', padding: 4, display: 'flex' }}
+                  >
+                    <Icon name={showEditPassword ? 'eye-off' : 'eye'} size={16} />
+                  </button>
+                </div>
               </label>
 
 
@@ -719,7 +745,7 @@ export function UsersManagement() {
                 const wbPerm = permissions[wb._id] || { enabled: false, sheets: {} }
                 const isExpanded = expandedWorkbooks.has(wb._id)
                 return (
-                  <div key={wb._id} style={{ border: `1px solid ${selectedUser.role === 'Admin' || wbPerm.enabled ? '#3a6b5e' : '#252525'}`, borderRadius: 8, overflow: 'hidden', background: selectedUser.role === 'Admin' || wbPerm.enabled ? '#0d2220' : '#181818' }}>
+                  <div key={wb._id} style={{ border: `1px solid ${selectedUser.role === 'Admin' || wbPerm.enabled ? '#3a6b5e' : '#252525'}`, borderRadius: 8, background: selectedUser.role === 'Admin' || wbPerm.enabled ? '#0d2220' : '#181818' }}>
                     {/* Workbook header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: selectedUser.role === 'Admin' ? 'default' : 'pointer' }}
                       onClick={() => selectedUser.role !== 'Admin' && toggleWbExpand(wb._id)}>
@@ -757,7 +783,7 @@ export function UsersManagement() {
                           const allSelected = uniqueSheetTags.length > 0 && uniqueSheetTags.every(t => visibleTags.includes(t))
 
                           return (
-                            <div key={sheet.name} style={{ marginLeft: 24, marginTop: 8, border: `1px solid ${sheetPerm.enabled ? '#2a4d42' : '#252525'}`, borderRadius: 6, overflow: 'hidden', background: sheetPerm.enabled ? '#0b1e1c' : '#141414' }}>
+                            <div key={sheet.name} style={{ marginLeft: 24, marginTop: 8, border: `1px solid ${sheetPerm.enabled ? '#2a4d42' : '#252525'}`, borderRadius: 6, background: sheetPerm.enabled ? '#0b1e1c' : '#141414' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}
                                 onClick={() => toggleSheetExpand(sheetKey, wb._id, sheet)}>
                                 <input
@@ -903,34 +929,54 @@ export function UsersManagement() {
             <button className="close-button" type="button" onClick={() => setShowModulesModal(false)}><Icon name="close" size={20} /></button>
             <span className="eyebrow">MODULE ACCESS</span>
             <h2 style={{ marginBottom: 4 }}>Modules for {selectedUser.name}</h2>
-            <p style={{ color: '#777777', fontSize: 12, marginBottom: 20 }}>
-              Select which admin modules this administrator can access.
-            </p>
+            {selectedUser.role === 'Admin' ? (
+              <div style={{ marginBottom: 16, marginTop: 4, padding: '12px', background: 'rgba(231, 76, 60, 0.08)', border: '1px solid rgba(231, 76, 60, 0.2)', borderRadius: 6 }}>
+                <p style={{ margin: 0, fontSize: 12, color: '#e74c3c', fontWeight: 500 }}>Admins have unrestricted access to all modules. Module restrictions don't apply to Admin users.</p>
+              </div>
+            ) : selectedUser.role === 'Field Employee' ? (
+              <div style={{ marginBottom: 16, marginTop: 4, padding: '12px', background: 'rgba(100, 100, 100, 0.08)', border: '1px solid rgba(100, 100, 100, 0.2)', borderRadius: 6 }}>
+                <p style={{ margin: 0, fontSize: 12, color: '#777777', fontWeight: 500 }}>Field Employees don't have access to admin modules.</p>
+              </div>
+            ) : (
+              <p style={{ color: '#777777', fontSize: 12, marginBottom: 20 }}>
+                Select which admin modules this manager can access.
+              </p>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {availableModules.map(mod => (
-                <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={adminModules.includes(mod.id)}
-                    onChange={e => {
-                      if (e.target.checked) setAdminModules(p => [...p, mod.id])
-                      else setAdminModules(p => p.filter(m => m !== mod.id))
-                    }}
-                    style={{ width: 16, height: 16, accentColor: '#6be2c7' }}
-                  />
-                  <span style={{ fontSize: 14, color: '#c8eee5' }}>{mod.label}</span>
-                </label>
-              ))}
+              {availableModules.map(mod => {
+                const isAdmin = selectedUser.role === 'Admin'
+                const isFOS = selectedUser.role === 'Field Employee'
+                const checked = isAdmin ? true : isFOS ? false : adminModules.includes(mod.id)
+                const disabled = isAdmin || isFOS
+                return (
+                  <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.6 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={e => {
+                        if (disabled) return
+                        if (e.target.checked) setAdminModules(p => [...p, mod.id])
+                        else setAdminModules(p => p.filter(m => m !== mod.id))
+                      }}
+                      style={{ width: 16, height: 16, accentColor: '#6be2c7', cursor: disabled ? 'not-allowed' : 'pointer' }}
+                    />
+                    <span style={{ fontSize: 14, color: '#c8eee5' }}>{mod.label}</span>
+                  </label>
+                )
+              })}
             </div>
 
 
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #252525' }}>
-              <button type="button" className="outlined-button" onClick={() => setShowModulesModal(false)}>Cancel</button>
-              <button type="button" className="primary-button" style={{ flex: 1 }} onClick={handleSaveModules} disabled={modulesSaving}>
-                {modulesSaving ? <><Icon name="spinner" size={14} className="spin-icon" /> Saving...</> : 'Save Modules'}
-              </button>
+              <button type="button" className="outlined-button" onClick={() => setShowModulesModal(false)}>Close</button>
+              {selectedUser.role === 'Manager' && (
+                <button type="button" className="primary-button" style={{ flex: 1 }} onClick={handleSaveModules} disabled={modulesSaving}>
+                  {modulesSaving ? <><Icon name="spinner" size={14} className="spin-icon" /> Saving...</> : 'Save Modules'}
+                </button>
+              )}
             </div>
           </div>
         </div>
