@@ -233,10 +233,13 @@ router.get('/cases', async (req, res) => {
     if (col.tag) {
       const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === col.label)
       const sourceCol = mapping ? mapping.sourceColumn : col.label
-      if (tagToSourceCol[col.tag]) {
-        tagToSourceCol[col.tag] += '|||' + sourceCol
-      } else {
-        tagToSourceCol[col.tag] = sourceCol
+      const tags = col.tag.split(',').map(t => t.trim())
+      for (const t of tags) {
+        if (tagToSourceCol[t]) {
+          tagToSourceCol[t] += '|||' + sourceCol
+        } else {
+          tagToSourceCol[t] = sourceCol
+        }
       }
     }
   }
@@ -311,10 +314,13 @@ router.get('/sheet-stats', async (req, res) => {
     if (col.tag) {
       const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === col.label)
       const sourceCol = mapping ? mapping.sourceColumn : col.label
-      if (tagToSourceCol[col.tag]) {
-        tagToSourceCol[col.tag] += '|||' + sourceCol
-      } else {
-        tagToSourceCol[col.tag] = sourceCol
+      const tags = col.tag.split(',').map(t => t.trim())
+      for (const t of tags) {
+        if (tagToSourceCol[t]) {
+          tagToSourceCol[t] += '|||' + sourceCol
+        } else {
+          tagToSourceCol[t] = sourceCol
+        }
       }
     }
   }

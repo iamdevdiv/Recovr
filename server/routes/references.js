@@ -707,8 +707,11 @@ function buildTagData(c, sheet) {
   for (const col of sheet.standardColumns) {
     if (col.tag && col.tag !== 'None' && String(col.tag).trim() !== '') {
       const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === col.label);
-      if (!tagToSourceCol[col.tag]) tagToSourceCol[col.tag] = [];
-      tagToSourceCol[col.tag].push(mapping ? mapping.sourceColumn : col.label);
+      const tags = col.tag.split(',').map(t => t.trim());
+      for (const t of tags) {
+        if (!tagToSourceCol[t]) tagToSourceCol[t] = [];
+        tagToSourceCol[t].push(mapping ? mapping.sourceColumn : col.label);
+      }
     }
   }
   const tagData = {};

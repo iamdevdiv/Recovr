@@ -310,9 +310,14 @@ export function UsersManagement() {
         const wb = workbooks.find(w => w._id === wbId)
         if (wb && wb.sheets) {
           wb.sheets.forEach(sheet => {
-            const sheetTags = sheet.standardColumns
-              ? sheet.standardColumns.filter(c => c.tag).map(c => c.tag)
-              : []
+            const sheetTags = []
+            if (sheet.standardColumns) {
+              sheet.standardColumns.forEach(c => {
+                if (c.tag && c.tag !== 'None') {
+                  c.tag.split(',').forEach(t => sheetTags.push(t.trim()))
+                }
+              })
+            }
             const uniqueSheetTags = [...new Set(sheetTags)]
             const sheetKey = `${wb._id}__${sheet.name}`
 
@@ -775,9 +780,14 @@ export function UsersManagement() {
                           const sheetKey = `${wb._id}__${sheet.name}`
                           const isSheetExpanded = expandedSheets.has(sheetKey)
                           // Get all tags available on this sheet
-                          const sheetTags = sheet.standardColumns
-                            ? sheet.standardColumns.filter(c => c.tag).map(c => c.tag)
-                            : []
+                          const sheetTags = []
+                          if (sheet.standardColumns) {
+                            sheet.standardColumns.forEach(c => {
+                              if (c.tag && c.tag !== 'None') {
+                                c.tag.split(',').forEach(t => sheetTags.push(t.trim()))
+                              }
+                            })
+                          }
                           const uniqueSheetTags = [...new Set(sheetTags)]
                           const visibleTags = sheetPerm.visibleTags || []
                           const allSelected = uniqueSheetTags.length > 0 && uniqueSheetTags.every(t => visibleTags.includes(t))

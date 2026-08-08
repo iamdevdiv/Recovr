@@ -27,13 +27,16 @@ export function TaggingManagement({ collectionId, sheetName, availableColumns, s
     }
     for (const col of availableColumns) {
       if (col.tag) {
-        if (!initial[col.tag]) {
-          initial[col.tag] = []
-          if (!TAGS.includes(col.tag)) {
-            foundCustomTags.add(col.tag)
+        const tags = col.tag.split(',').map(t => t.trim())
+        for (const t of tags) {
+          if (!initial[t]) {
+            initial[t] = []
+            if (!TAGS.includes(t)) {
+              foundCustomTags.add(t)
+            }
           }
+          initial[t].push(col.label)
         }
-        initial[col.tag].push(col.label)
       }
     }
     setTagMap(initial)
@@ -50,14 +53,47 @@ export function TaggingManagement({ collectionId, sheetName, availableColumns, s
   }, [dirtyMap])
 
   const handleTagChange = (tag, index, newCol) => {
+    const isRef = tag === 'Reference name' || tag === 'Reference number' || tag === 'Reference mobile'
+    let isConflict = false
+    let conflictingTag = ''
+
+    if (newCol !== '') {
+      for (const [t, cols] of Object.entries(tagMap)) {
+        if (t !== tag && cols.includes(newCol)) {
+          const tIsRef = t === 'Reference name' || t === 'Reference number' || t === 'Reference mobile'
+          if (!(isRef && tIsRef)) {
+            isConflict = true
+            conflictingTag = t
+            break
+          }
+        }
+      }
+    }
+
+    if (isConflict) {
+      setSaveError(`Column "${newCol}" is already assigned to "${conflictingTag}".`)
+      setSaveState('error')
+      setTimeout(() => setSaveState(s => s === 'error' ? 'idle' : s), 3000)
+      
+      setTagMap(prev => {
+        const newMap = { ...prev }
+        const arr = [...(newMap[tag] || [])]
+        arr[index] = ''
+        newMap[tag] = arr
+        return newMap
+      })
+      return
+    }
+
     setTagMap(prev => {
-      const arr = [...(prev[tag] || [])]
+      const newMap = { ...prev }
+      const arr = [...(newMap[tag] || [])]
       if (newCol === '') {
         arr.splice(index, 1)
       } else {
         arr[index] = newCol
       }
-      const newMap = { ...prev, [tag]: arr }
+      newMap[tag] = arr
       setDirtyMap(newMap)
       return newMap
     })
@@ -100,7 +136,23 @@ export function TaggingManagement({ collectionId, sheetName, availableColumns, s
     const payload = {}
     for (const [tag, cols] of Object.entries(mapToSave)) {
       for (const c of cols) {
-        if (c) payload[c] = tag
+        if (c) {
+          if (payload[c]) {
+            const existingTags = payload[c].split(',')
+            if (existingTags.includes(tag)) continue
+
+            const allTags = [...existingTags, tag]
+            const isOnlyRefTags = allTags.every(t => t === 'Reference name' || t === 'Reference number' || t === 'Reference mobile')
+            if (!isOnlyRefTags) {
+              setSaveError(`Column "${c}" cannot be assigned to multiple tags unless they are Reference Name and Reference Number/Mobile.`)
+              setSaveState('error')
+              return
+            }
+            payload[c] += `,${tag}`
+          } else {
+            payload[c] = tag
+          }
+        }
       }
     }
 
