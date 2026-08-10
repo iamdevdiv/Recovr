@@ -873,7 +873,7 @@ router.get('/:id/download', async (req, res) => {
 
   if (!result) return res.status(404).json({ message: 'No data found to generate Excel.' })
 
-  res.download(result.excelPath, `${col.name.replace(/[^a-z0-9 _-]/gi, '_')}.xlsx`, (err) => {
+  res.download(result.excelPath, `${col.name.replace(/[<>:"/\\|?*]/g, '_')}.xlsx`, (err) => {
     if (isTemp && fs.existsSync(result.excelPath)) {
       try {
         fs.unlinkSync(result.excelPath)

@@ -146,7 +146,7 @@ router.get('/:id/download', async (req, res) => {
     const buffer = await wb.xlsx.writeBuffer()
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    const safeColName = (structure.name || 'Workbook').replace(/[^a-z0-9_\s]/gi, '_').trim()
+    const safeColName = (structure.name || 'Workbook').replace(/[<>:"/\\|?*]/g, '_').trim()
     res.setHeader('Content-Disposition', `attachment; filename="${safeColName} - Backup - ${backup._id}.xlsx"`)
     res.send(buffer)
   } catch (err) {
