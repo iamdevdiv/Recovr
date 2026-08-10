@@ -541,12 +541,77 @@ router.delete('/cases/:id', async (req, res) => {
   if (!caseDoc) return res.status(404).json({ message: 'Case not found.' });
 
   const colId = caseDoc.collectionId;
+  const loanNo = caseDoc.loanNumber || caseDoc.rawData?.['Loan No'] || 'Unknown Loan';
+
+  const { createBackup } = await import('../utils/backupHelper.js');
+  
+  // Backup before deletion
+  try {
+    await createBackup(colId, `Before deleting case ${loanNo}`, 'auto', user._id);
+  } catch (err) {
+    console.error('Failed to create before backup:', err);
+  }
+
   await Case.findByIdAndDelete(id);
+
+  // Backup after deletion
+  try {
+    await createBackup(colId, `After deleting case ${loanNo}`, 'auto', user._id);
+  } catch (err) {
+    console.error('Failed to create after backup:', err);
+  }
 
   // Instantly reflect in final output Excel file
   await generateExcelForCollection(colId);
 
   res.json({ message: 'Case deleted successfully' });
+});
+
+router.post('/cases/bulk-delete', async (req, res) => {
+  const employeeId = getEmployeeIdFromReq(req);
+  if (!employeeId) return res.status(401).json({ message: 'Unauthorized.' });
+
+  const user = await User.findOne({ employeeId });
+  if (!user || user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden.' });
+
+  const { caseIds } = req.body;
+  if (!Array.isArray(caseIds) || caseIds.length === 0) {
+    return res.status(400).json({ message: 'No case IDs provided.' });
+  }
+
+  // Find cases to ensure they exist and group by collection for Excel regen
+  const casesToDelete = await Case.find({ _id: { $in: caseIds } });
+  if (casesToDelete.length === 0) {
+    return res.status(404).json({ message: 'No cases found to delete.' });
+  }
+
+  const collectionIds = [...new Set(casesToDelete.map(c => String(c.collectionId)))];
+  
+  const { createBackup } = await import('../utils/backupHelper.js');
+  
+  // Create 'Before' backup for each affected collection
+  for (const colId of collectionIds) {
+    try {
+      await createBackup(colId, `Before bulk deleting ${casesToDelete.filter(c => String(c.collectionId) === colId).length} cases`, 'auto', user._id);
+    } catch (err) {
+      console.error('Failed to create before bulk backup:', err);
+    }
+  }
+
+  // Delete all
+  await Case.deleteMany({ _id: { $in: caseIds } });
+
+  // Create 'After' backup and regenerate excel for each affected collection
+  for (const colId of collectionIds) {
+    try {
+      await createBackup(colId, `After bulk deleting cases`, 'auto', user._id);
+    } catch (err) {
+      console.error('Failed to create after bulk backup:', err);
+    }
+    await generateExcelForCollection(colId);
+  }
+
+  res.json({ message: `Successfully deleted ${casesToDelete.length} cases.` });
 });
 
 export default router

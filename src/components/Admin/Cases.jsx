@@ -477,7 +477,7 @@ function InlineQuickEdit({ caseData, onUpdate, testMode, masterMode }) {
 }
 
 // ── Case Row ──────────────────────────────────────────────────────────────────
-function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdate }) {
+function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdate, isSelected, onToggleSelect }) {
   const [expanded, setExpanded] = useState(false)
   const [copiedLoan, setCopiedLoan] = useState(false)
   const [copiedName, setCopiedName] = useState(false)
@@ -667,7 +667,7 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
   function handleNotesUpdate(newNotes) { onUpdate(caseData._id, { fosNotes: newNotes }, false) }
 
   return (
-    <div className={`ac-case-row ${expanded ? 'ac-row-open' : ''}`}>
+    <div className={`ac-case-row ${expanded ? 'ac-row-open' : ''} ${isSelected ? 'ac-row-selected' : ''}`} style={isSelected ? { background: '#ffffff05' } : undefined}>
       <div className={`ac-row-stripe ${isPaid ? 'stripe-paid' : isUnpaid ? 'stripe-unpaid' : 'stripe-other'}`} />
 
       {/* ── Clickable info area ── */}
@@ -675,6 +675,15 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
 
         {/* Line 1: # + Name + Loan + Status pill + expand */}
         <div className="ac-row-line1">
+          {masterMode && (
+            <input
+              type="checkbox"
+              checked={isSelected || false}
+              onChange={() => onToggleSelect && onToggleSelect(caseData._id)}
+              onClick={e => e.stopPropagation()}
+              style={{ width: 14, height: 14, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0, marginRight: 8 }}
+            />
+          )}
           <span className="ac-row-num">#{index + 1}</span>
 
           <div className="ac-row-name-block">
@@ -850,7 +859,7 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
 
 
 // ── Group Node ─────────────────────────────────────────────────────────────────
-function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate, caseIndexMap }) {
+function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate, caseIndexMap, selectedCases, onToggleSelect, onToggleGroupSelect }) {
   const [collapsed, setCollapsed] = useState(false)
 
   if (!node.isGroup) {
@@ -862,6 +871,8 @@ function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate,
         masterMode={masterMode}
         testMode={testMode}
         onUpdate={onUpdate}
+        isSelected={selectedCases.has(String(node._id))}
+        onToggleSelect={onToggleSelect}
       />
     )
   }
@@ -874,9 +885,32 @@ function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate,
     ? `${node.count} ${node.count === 1 ? 'case' : 'cases'}`
     : `${node.count} ${node.count === 1 ? 'case' : 'cases'} (${node.currentCount} current)`
 
+  const groupIds = React.useMemo(() => {
+    const getIds = (n) => {
+      if (!n.isGroup) return [String(n._id)]
+      return n.children.flatMap(getIds)
+    }
+    return getIds(node)
+  }, [node])
+
+  const allSelected = groupIds.length > 0 && groupIds.every(id => selectedCases.has(id))
+  const someSelected = groupIds.some(id => selectedCases.has(id))
+
   return (
     <div className={`ac-group-node ac-group-depth-${Math.min(depth, 3)}`}>
-      <button className="ac-group-hdr" onClick={() => setCollapsed(c => !c)}>
+      <button className="ac-group-hdr" onClick={(e) => {
+        if (e.target.tagName !== 'INPUT') setCollapsed(c => !c)
+      }}>
+        {masterMode && (
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+            onChange={(e) => onToggleGroupSelect(groupIds, e.target.checked)}
+            style={{ width: 14, height: 14, accentColor: '#6be2c7', cursor: 'pointer', flexShrink: 0 }}
+            title="Select all cases in group"
+          />
+        )}
         <Icon name={collapsed ? 'chevron-down' : 'chevron-up'} size={13} />
         {pillClass
           ? <span className={`fos-status-pill ${pillClass}`} style={{ fontSize: 10 }}>{lbl}</span>
@@ -892,6 +926,7 @@ function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate,
               availableTags={availableTags}
               masterMode={masterMode} testMode={testMode}
               onUpdate={onUpdate} caseIndexMap={caseIndexMap}
+              selectedCases={selectedCases} onToggleSelect={onToggleSelect} onToggleGroupSelect={onToggleGroupSelect}
             />
           ))}
         </div>
@@ -937,6 +972,10 @@ export function Cases() {
   const [hiddenFos, setHiddenFos] = useState(new Set())
   const [drrPercentage, setDrrPercentage] = useState(97)
   const [drrDaysOverride, setDrrDaysOverride] = useState('')
+
+  const [selectedCases, setSelectedCases] = useState(new Set())
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   const headerRef = useRef(null)
 
@@ -998,6 +1037,7 @@ export function Cases() {
   }
 
   useEffect(() => {
+    setSelectedCases(new Set())
     const empId = localStorage.getItem('collectionAssistEmployeeId') || sessionStorage.getItem('collectionAssistEmployeeId') || 'unknown'
     const storageKey = `lastViewedCases_${empId}`
 
@@ -1260,6 +1300,50 @@ export function Cases() {
     setGroupKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
   }
 
+  const handleToggleSelect = (caseId) => {
+    setSelectedCases(prev => {
+      const next = new Set(prev)
+      if (next.has(caseId)) next.delete(caseId)
+      else next.add(caseId)
+      return next
+    })
+  }
+
+  const handleToggleGroupSelect = (caseIdsArray, isSelecting) => {
+    setSelectedCases(prev => {
+      const next = new Set(prev)
+      if (isSelecting) {
+        caseIdsArray.forEach(id => next.add(id))
+      } else {
+        caseIdsArray.forEach(id => next.delete(id))
+      }
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteConfirm(false)
+    setBulkDeleteLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/cases/bulk-delete', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ caseIds: Array.from(selectedCases) })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.message || 'Failed to bulk delete cases')
+      }
+      setSelectedCases(new Set())
+      fetchCases(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBulkDeleteLoading(false)
+    }
+  }
+
   const availableGroupKeys = GROUPABLE_TAGS.filter(k => availableTags.includes(k))
 
   const filteredCases = useMemo(() => {
@@ -1320,6 +1404,12 @@ export function Cases() {
     flatten(treeData).forEach((c, i) => { map[String(c._id)] = i })
     return map
   }, [treeData])
+
+  useEffect(() => {
+    if (groupKeys.length === 0) {
+      cases.forEach(c => initialTagsRef.current.set(String(c._id), c.tagData))
+    }
+  }, [groupKeys, cases])
 
   // ── Landing state ──────────────────────────────────────────────────────────
   if (!collectionId || !sheetName) {
@@ -1457,6 +1547,49 @@ export function Cases() {
 
         {error && <div className="fos-error ac-error">{error}</div>}
 
+        {/* ── Bulk Delete Floating Bar ── */}
+        <div style={{
+          position: 'fixed',
+          bottom: selectedCases.size > 0 ? 32 : -100,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#1e1e1e',
+          border: '1px solid #252525',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          borderRadius: 32,
+          padding: '12px 24px',
+          display: 'flex',
+          gap: 24,
+          alignItems: 'center',
+          transition: 'bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          zIndex: 1000,
+          pointerEvents: selectedCases.size > 0 ? 'auto' : 'none'
+        }}>
+          <span style={{ color: '#eeeeee', fontWeight: 500 }}>{selectedCases.size} {selectedCases.size === 1 ? 'case' : 'cases'} selected</span>
+          <button className="primary-button" style={{ background: '#a54d4d', color: '#ffd6d6', boxShadow: 'none', padding: '6px 16px', borderRadius: 20 }} onClick={() => setBulkDeleteConfirm(true)} disabled={bulkDeleteLoading}>
+            {bulkDeleteLoading ? 'Deleting...' : 'Delete Selected'}
+          </button>
+        </div>
+
+        {bulkDeleteConfirm && (
+          <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setBulkDeleteConfirm(false) }}>
+            <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }}>
+              <button className="close-button" type="button" onClick={() => setBulkDeleteConfirm(false)} disabled={bulkDeleteLoading}><Icon name="close" size={20} /></button>
+              <span className="eyebrow" style={{ color: '#e88080' }}>BULK DELETE</span>
+              <h2 style={{ marginBottom: 12 }}>Delete {selectedCases.size} Cases?</h2>
+              <p style={{ margin: 0, color: '#888888', fontSize: 13, lineHeight: 1.5 }}>
+                Are you sure you want to completely delete {selectedCases.size} cases? This will remove them from the database and regenerate the output Excel file. This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button type="button" className="outlined-button" onClick={() => setBulkDeleteConfirm(false)} style={{ flex: 1 }} disabled={bulkDeleteLoading}>Cancel</button>
+                <button type="button" className="primary-button" style={{ background: '#a13b3b', borderColor: '#a13b3b', flex: 1 }} onClick={handleBulkDelete} disabled={bulkDeleteLoading}>
+                  {bulkDeleteLoading ? 'Deleting...' : 'Delete Cases'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Case List ── */}
         <div className="ac-list-wrapper">
           {loading ? (
@@ -1509,17 +1642,35 @@ export function Cases() {
             </div>
           ) : (
             <div style={{ animation: 'contentFadeIn 0.3s ease' }}>
-              <div className="ac-list-count-bar">
-                <span>{filteredCases.length !== cases.length ? `${filteredCases.length} of ${cases.length} cases` : `${cases.length} ${cases.length === 1 ? 'case' : 'cases'}`}</span>
+              <div className="ac-list-count-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  {masterMode && filteredCases.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#777777', fontSize: 13, fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={filteredCases.length > 0 && selectedCases.size === filteredCases.length}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedCases(new Set(filteredCases.map(c => String(c._id))))
+                          else setSelectedCases(new Set())
+                        }}
+                        style={{ width: 14, height: 14, accentColor: '#6be2c7', cursor: 'pointer' }}
+                        title={selectedCases.size === filteredCases.length ? "Deselect all" : "Select all"}
+                        id="selectAllCheckboxBottom"
+                      />
+                      <label htmlFor="selectAllCheckboxBottom" style={{ cursor: 'pointer' }}>Select All</label>
+                    </div>
+                  )}
+                  <span>{filteredCases.length !== cases.length ? `${filteredCases.length} of ${cases.length} cases` : `${cases.length} ${cases.length === 1 ? 'case' : 'cases'}`}</span>
+                </div>
                 {groupKeys.length > 0 && <span className="ac-grouped-badge">Grouped by: {groupKeys.join(' → ')}</span>}
               </div>
               <div className="ac-case-list">
                 {groupKeys.length === 0
                   ? filteredCases.map((c, i) => (
-                    <CaseRow key={String(c._id)} caseData={c} index={i} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} />
+                    <CaseRow key={String(c._id)} caseData={c} index={i} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} isSelected={selectedCases.has(String(c._id))} onToggleSelect={handleToggleSelect} />
                   ))
                   : (Array.isArray(treeData) ? treeData : []).map((node, i) => (
-                    <GroupNode key={node.isGroup ? `root-${node.label}-${i}` : String(node._id)} node={node} depth={0} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} caseIndexMap={caseIndexMap} />
+                    <GroupNode key={node.isGroup ? `root-${node.label}-${i}` : String(node._id)} node={node} depth={0} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} caseIndexMap={caseIndexMap} selectedCases={selectedCases} onToggleSelect={handleToggleSelect} onToggleGroupSelect={handleToggleGroupSelect} />
                   ))}
               </div>
             </div>
