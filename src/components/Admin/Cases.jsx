@@ -510,7 +510,7 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
   const isUnpaid = statusUpper === 'UNPAID'
   const newCaseVal = String(td['New Case'] || '').trim()
   const isNew = newCaseVal.length > 0 && newCaseVal.toLowerCase() !== 'none'
-  const custName = String(td['Customer Name'] || '—')
+  const custName = String(td['Customer Name'] || '—').replace(/\s+\.$/, '').trim()
   const loanNo = String(caseData.loanNumber || td['Loan No'] || '—')
   const address = (td['Address'] && String(td['Address']).toLowerCase() !== 'none') ? String(td['Address']) : ''
   const pinCode = (td['Pin Code'] && String(td['Pin Code']).toLowerCase() !== 'none') ? String(td['Pin Code']) : ''
@@ -553,40 +553,57 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
       if (mobTag) processedTags.add(mobTag)
 
       // Regex parsing for single-column merged Reference Name & Number
-      if (mobTag && rawVal && mobVal && typeof rawVal === 'string' && rawVal === mobVal) {
-        const combined = rawVal
-        const refSourceCol = caseData.tagCols?.[tag]
+      const isIdentical = (v1, v2) => {
+        if (!v1 || !v2) return false
+        if (typeof v1 === 'string' && typeof v2 === 'string' && v1 === v2) return true
+        if (Array.isArray(v1) && Array.isArray(v2) && v1.length === v2.length && v1.every((val, i) => val === v2[i])) return true
+        return false
+      }
 
-        const phoneRegex = /\d{10,}/g
-        const phones = combined.match(phoneRegex) || []
-        let namesStr = combined.replace(phoneRegex, '|')
-        let rawNames = namesStr.split(/[|,]/)
-        let names = rawNames.map(n => n.trim()).filter(n => n.length > 1)
-        names = names.map(n => n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+      if (mobTag && isIdentical(rawVal, mobVal)) {
+        const arr = Array.isArray(rawVal) ? rawVal : [rawVal]
+        const colArr = Array.isArray(rawCols) ? rawCols : (rawCols ? [rawCols] : [])
+        let refIndexCounter = 1
 
-        const max = Math.max(phones.length, names.length)
-        for (let i = 0; i < max; i++) {
-          const n = names[i] || `Reference ${i + 1}`
-          const p = phones[i] || null
-          if (n && n !== `Reference ${i + 1}`) {
-            expandTagElements.push(
-              <div key={`RefName_${i}`} className="fos-detail-item">
-                <span className="fos-detail-label">Reference Name {i + 1}</span>
-                {masterMode
-                  ? <strong className="fos-detail-val"><MasterEditField caseId={caseData._id} tag="Reference Name" sourceCol={refSourceCol} value={n} fullString={combined} replaceTarget={names[i]} onUpdate={handleFieldMasterUpdate} /></strong>
-                  : <strong className="fos-detail-val">{n}</strong>}
-              </div>
-            )
-          }
-          if (p) {
-            expandTagElements.push(
-              <div key={`RefPhone_${i}`} className="fos-detail-item">
-                <span className="fos-detail-label">{mobTag} {i + 1}</span>
-                {masterMode
-                  ? <strong className="fos-detail-val"><MasterEditField caseId={caseData._id} tag={mobTag} sourceCol={refSourceCol} value={p} fullString={combined} replaceTarget={p} onUpdate={handleFieldMasterUpdate} /></strong>
-                  : <strong className="fos-detail-val">{p}</strong>}
-              </div>
-            )
+        for (let cIdx = 0; cIdx < arr.length; cIdx++) {
+          const combined = arr[cIdx]
+          const refSourceCol = colArr[cIdx]
+          if (!combined || typeof combined !== 'string') continue
+
+          const phoneRegex = /\d{10,}/g
+          const phones = combined.match(phoneRegex) || []
+          let namesStr = combined.replace(phoneRegex, '|')
+          let rawNames = namesStr.split(/[|,]/)
+          let names = rawNames
+            .map(n => n.replace(/\s+\.$/, '').replace(/^[^a-zA-Z0-9.]+|[^a-zA-Z0-9.]+$/g, '').trim())
+            .filter(n => n.length > 1)
+          names = names.map(n => n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+
+          const max = Math.max(phones.length, names.length)
+          for (let i = 0; i < max; i++) {
+            const n = names[i] || `Reference ${refIndexCounter}`
+            const p = phones[i] || null
+            if (n && n !== `Reference ${refIndexCounter}`) {
+              expandTagElements.push(
+                <div key={`RefName_${cIdx}_${i}`} className="fos-detail-item">
+                  <span className="fos-detail-label">Reference Name {refIndexCounter}</span>
+                  {masterMode
+                    ? <strong className="fos-detail-val"><MasterEditField caseId={caseData._id} tag="Reference Name" sourceCol={refSourceCol} value={n} fullString={combined} replaceTarget={names[i]} onUpdate={handleFieldMasterUpdate} /></strong>
+                    : <strong className="fos-detail-val">{n}</strong>}
+                </div>
+              )
+            }
+            if (p) {
+              expandTagElements.push(
+                <div key={`RefPhone_${cIdx}_${i}`} className="fos-detail-item">
+                  <span className="fos-detail-label">{mobTag} {refIndexCounter}</span>
+                  {masterMode
+                    ? <strong className="fos-detail-val"><MasterEditField caseId={caseData._id} tag={mobTag} sourceCol={refSourceCol} value={p} fullString={combined} replaceTarget={p} onUpdate={handleFieldMasterUpdate} /></strong>
+                    : <strong className="fos-detail-val">{p}</strong>}
+                </div>
+              )
+            }
+            refIndexCounter++
           }
         }
         continue

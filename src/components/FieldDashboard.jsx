@@ -30,31 +30,54 @@ function formatDate(dateStr) {
 }
 
 function parseReferences(refNameRaw, refMobRaw) {
-  let combined = ''
-  if (refNameRaw === refMobRaw) {
-    combined = String(refNameRaw || '')
-  } else {
-    combined = [String(refNameRaw || ''), String(refMobRaw || '')].join(' , ')
+  const isIdentical = (v1, v2) => {
+    if (!v1 || !v2) return false
+    if (typeof v1 === 'string' && typeof v2 === 'string' && v1 === v2) return true
+    if (Array.isArray(v1) && Array.isArray(v2) && v1.length === v2.length && v1.every((val, i) => val === v2[i])) return true
+    return false
   }
 
-  const phoneRegex = /\d{10,}/g
-  const phones = combined.match(phoneRegex) || []
-
-  let namesStr = combined.replace(phoneRegex, '|')
-  let rawNames = namesStr.split(/[|,]/)
-  let names = rawNames.map(n => n.trim()).filter(n => n.length > 1)
-
-  names = names.map(n => {
-    return n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-  })
+  let combinedArray = []
+  
+  if (isIdentical(refNameRaw, refMobRaw)) {
+    combinedArray = Array.isArray(refNameRaw) ? refNameRaw : [refNameRaw]
+  } else {
+    const arrName = Array.isArray(refNameRaw) ? refNameRaw : [refNameRaw]
+    const arrMob = Array.isArray(refMobRaw) ? refMobRaw : [refMobRaw]
+    const maxLen = Math.max(arrName.length, arrMob.length)
+    for (let i = 0; i < maxLen; i++) {
+      let n = arrName[i] || ''
+      let m = arrMob[i] || ''
+      if (n === m) combinedArray.push(n)
+      else combinedArray.push([n, m].filter(Boolean).join(' , '))
+    }
+  }
 
   const refs = []
-  const max = Math.max(phones.length, names.length)
-  for (let i = 0; i < max; i++) {
-    const p = phones[i] || null
-    const n = names[i] || `Reference ${i + 1}`
-    if (p || names[i]) {
-      refs.push({ name: n, phone: p })
+  let refIndexCounter = 1
+  for (const combined of combinedArray) {
+    if (!combined || typeof combined !== 'string') continue
+    const phoneRegex = /\d{10,}/g
+    const phones = combined.match(phoneRegex) || []
+
+    let namesStr = combined.replace(phoneRegex, '|')
+    let rawNames = namesStr.split(/[|,]/)
+    let names = rawNames
+      .map(n => n.replace(/\s+\.$/, '').replace(/^[^a-zA-Z0-9.]+|[^a-zA-Z0-9.]+$/g, '').trim())
+      .filter(n => n.length > 1)
+
+    names = names.map(n => {
+      return n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    })
+
+    const max = Math.max(phones.length, names.length)
+    for (let i = 0; i < max; i++) {
+      const p = phones[i] || null
+      const n = names[i] || `Reference ${refIndexCounter}`
+      if (p || names[i]) {
+        refs.push({ name: n, phone: p })
+      }
+      refIndexCounter++
     }
   }
   return refs
@@ -350,7 +373,7 @@ function CaseCard({ caseData, index, expandTags, onPtpUpdate, onNotesUpdate, wha
   const isPaid = status === 'PAID'
   const isUnpaid = status === 'UNPAID'
 
-  const custName = expandTags.includes('Customer Name') ? String(td['Customer Name'] || '—') : '—'
+  const custName = expandTags.includes('Customer Name') ? String(td['Customer Name'] || '—').replace(/\s+\.$/, '').trim() : '—'
   const fatherName = expandTags.includes('Father Name') ? String(td['Father Name'] || '').trim() : ''
   const custMobile = expandTags.includes('Mobile number') ? td['Mobile number'] : null
 

@@ -246,34 +246,51 @@ export function CaseAdditionalDetails({ caseData }) {
 
       if (mobTag) processedTags.add(mobTag)
 
-      if (mobTag && rawVal && mobVal && typeof rawVal === 'string' && rawVal === mobVal) {
-        const combined = rawVal
-        const phoneRegex = /\d{10,}/g
-        const phones = combined.match(phoneRegex) || []
-        let namesStr = combined.replace(phoneRegex, '|')
-        let rawNames = namesStr.split(/[|,]/)
-        let names = rawNames.map(n => n.trim()).filter(n => n.length > 1)
-        names = names.map(n => n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+      const isIdentical = (v1, v2) => {
+        if (!v1 || !v2) return false
+        if (typeof v1 === 'string' && typeof v2 === 'string' && v1 === v2) return true
+        if (Array.isArray(v1) && Array.isArray(v2) && v1.length === v2.length && v1.every((val, i) => val === v2[i])) return true
+        return false
+      }
 
-        const max = Math.max(phones.length, names.length)
-        for (let i = 0; i < max; i++) {
-          const n = names[i] || `Reference ${i + 1}`
-          const p = phones[i] || null
-          if (n && n !== `Reference ${i + 1}`) {
-            expandTagElements.push(
-              <div key={`RefName_${i}`} className="fos-detail-item">
-                <span className="fos-detail-label">Reference Name {i + 1}</span>
-                <strong className="fos-detail-val">{n}</strong>
-              </div>
-            )
-          }
-          if (p) {
-            expandTagElements.push(
-              <div key={`RefPhone_${i}`} className="fos-detail-item">
-                <span className="fos-detail-label">{mobTag} {i + 1}</span>
-                <strong className="fos-detail-val">{p}</strong>
-              </div>
-            )
+      if (mobTag && isIdentical(rawVal, mobVal)) {
+        const arr = Array.isArray(rawVal) ? rawVal : [rawVal]
+        let refIndexCounter = 1
+
+        for (let cIdx = 0; cIdx < arr.length; cIdx++) {
+          const combined = arr[cIdx]
+          if (!combined || typeof combined !== 'string') continue
+
+          const phoneRegex = /\d{10,}/g
+          const phones = combined.match(phoneRegex) || []
+          let namesStr = combined.replace(phoneRegex, '|')
+          let rawNames = namesStr.split(/[|,]/)
+          let names = rawNames
+            .map(n => n.replace(/\s+\.$/, '').replace(/^[^a-zA-Z0-9.]+|[^a-zA-Z0-9.]+$/g, '').trim())
+            .filter(n => n.length > 1)
+          names = names.map(n => n.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+
+          const max = Math.max(phones.length, names.length)
+          for (let i = 0; i < max; i++) {
+            const n = names[i] || `Reference ${refIndexCounter}`
+            const p = phones[i] || null
+            if (n && n !== `Reference ${refIndexCounter}`) {
+              expandTagElements.push(
+                <div key={`RefName_${cIdx}_${i}`} className="fos-detail-item">
+                  <span className="fos-detail-label">Reference Name {refIndexCounter}</span>
+                  <strong className="fos-detail-val">{n}</strong>
+                </div>
+              )
+            }
+            if (p) {
+              expandTagElements.push(
+                <div key={`RefPhone_${cIdx}_${i}`} className="fos-detail-item">
+                  <span className="fos-detail-label">{mobTag} {refIndexCounter}</span>
+                  <strong className="fos-detail-val">{p}</strong>
+                </div>
+              )
+            }
+            refIndexCounter++
           }
         }
         continue
