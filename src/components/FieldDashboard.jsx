@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { Icon } from './Shared.jsx'
+import { Icon, parseDateString } from './Shared.jsx'
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js'
 import { useOfflineSync } from '../hooks/useOfflineSync.js'
 import * as offlineQueue from '../utils/offlineQueue.js'
@@ -24,7 +24,7 @@ function authHeaders() {
 
 function formatDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === 'None') return '—'
-  const d = new Date(dateStr)
+  const d = parseDateString(dateStr)
   if (isNaN(d)) return String(dateStr)
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d)
 }
@@ -707,10 +707,13 @@ function SheetView({ workbook, sheet }) {
         if (cached) {
           try {
             const sheetCases = JSON.parse(cached)
-            const count = sheetCases.filter(c => 
-              String(c.loanNumber || '').toLowerCase().includes(q) ||
-              String(c.tagData?.['Customer Name'] || '').toLowerCase().includes(q)
-            ).length
+            const count = sheetCases.filter(c => {
+              const q = search.toLowerCase().replace(/\s+/g, ' ').trim()
+              return (
+                String(c.loanNumber || '').toLowerCase().includes(q) ||
+                String(c.tagData?.['Customer Name'] || '').toLowerCase().replace(/\s+/g, ' ').trim().includes(q)
+              )
+            }).length
             if (count > 0) counts[s.name] = count
           } catch { }
         }
@@ -824,10 +827,10 @@ function SheetView({ workbook, sheet }) {
   const processedCases = useMemo(() => {
     let result = cases.map((c, i) => ({ ...c, originalIndex: i, _queued: queuedCaseIds.has(c._id) }))
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = search.toLowerCase().replace(/\s+/g, ' ').trim()
       result = result.filter(c =>
         String(c.loanNumber || '').toLowerCase().includes(q) ||
-        String(c.tagData?.['Customer Name'] || '').toLowerCase().includes(q)
+        String(c.tagData?.['Customer Name'] || '').toLowerCase().replace(/\s+/g, ' ').trim().includes(q)
       )
     }
 

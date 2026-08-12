@@ -28,11 +28,11 @@ const LINE_HEIGHT_PT = 22            // pt per wrapped text line at 14 pt
 // Excel column-width is measured in Calibri 11 pt "character units" (~6.5 px each).
 // At 14 pt each character is ~8.3 px wide → ratio ≈ 8.3/6.5 ≈ 1.28.
 // Using 1.5 gives a comfortable safety margin so content never clips.
-const WIDTH_FACTOR       = 1.5   // char_count × factor = units needed
+const WIDTH_FACTOR = 1.5   // char_count × factor = units needed
 const CELL_PADDING_UNITS = 2     // ~1 char-unit margin on each side of a cell
-const MAX_COL_UNITS      = 28    // hard cap: 28 × 6.5 px ≈ 182 px raw (≈ 250 px at 14 pt)
-const EMPTY_COL_UNITS    = 8     // for columns with no data (~70 px)
-const MIN_COL_UNITS      = 10    // minimum for very short data
+const MAX_COL_UNITS = 28    // hard cap: 28 × 6.5 px ≈ 182 px raw (≈ 250 px at 14 pt)
+const EMPTY_COL_UNITS = 8     // for columns with no data (~70 px)
+const MIN_COL_UNITS = 10    // minimum for very short data
 
 // ── Border definition ─────────────────────────────────────────────────────────
 const THIN = { style: 'thin', color: { argb: 'FF000000' } }
@@ -59,14 +59,26 @@ function toWidthString(v) {
 /**
  * Returns the value that will be written into the ExcelJS cell.
  *  · JS number   → kept as number  (ExcelJS numeric cell — avoids "stored as text" warning)
- *  · Date object → "DD-MM-YYYY" string
+ *  · Date object → "DD-MM-YYYY" string using LOCAL date components
  *  · Everything  → String()
+ *
+ * Why a string, and why local components?
+ *
+ * SheetJS (cellDates:true) converts Excel date serials to JS Date objects at
+ * LOCAL midnight. For example, 08-08-2026 in a UTC+5:30 machine becomes
+ * 2026-08-07T18:30:00.000Z internally. If we pass that Date object to ExcelJS,
+ * it serialises it in UTC → Excel sees serial for 2026-08-07 18:30 → formula
+ * bar shows "07-08-2026 06:30:00 PM". Wrong date, wrong time.
+ *
+ * Formatting as a plain "DD-MM-YYYY" string with local components recovers the
+ * original calendar date (getDate() = 8) and writes it as text — no further
+ * timezone conversion possible.
  */
 function toCellValue(v) {
   if (v === null || v === undefined) return ''
   if (v instanceof Date) {
     if (Number.isNaN(v.getTime())) return ''
-    return v // Return Date object for native Excel date formatting
+    return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate(), v.getHours(), v.getMinutes(), v.getSeconds(), v.getMilliseconds()))
   }
   if (typeof v === 'number') return v   // preserve numeric type
   return String(v)
@@ -95,9 +107,9 @@ function calcColumnWidth(dataWidthStrs) {
   const nonEmpty = dataWidthStrs.filter((s) => s !== '')
   if (nonEmpty.length === 0) return EMPTY_COL_UNITS
 
-  const maxDataLen  = Math.max(...nonEmpty.map((s) => s.length))
-  const rawUnits    = Math.ceil(maxDataLen * WIDTH_FACTOR) + CELL_PADDING_UNITS
-  const cap         = isAlphanumericColumn(nonEmpty) ? MAX_COL_UNITS : MAX_COL_UNITS
+  const maxDataLen = Math.max(...nonEmpty.map((s) => s.length))
+  const rawUnits = Math.ceil(maxDataLen * WIDTH_FACTOR) + CELL_PADDING_UNITS
+  const cap = isAlphanumericColumn(nonEmpty) ? MAX_COL_UNITS : MAX_COL_UNITS
   return Math.max(MIN_COL_UNITS, Math.min(rawUnits, cap))
 }
 
@@ -142,10 +154,10 @@ function estimateRowHeight(displayStrs, colWidths, minHeight = 24) {
  */
 export async function formatWorkbook(sheets) {
   const wb = new ExcelJS.Workbook()
-  wb.creator        = 'Recovr'
+  wb.creator = 'Recovr'
   wb.lastModifiedBy = 'Recovr'
-  wb.created        = new Date()
-  wb.modified       = new Date()
+  wb.created = new Date()
+  wb.modified = new Date()
 
   for (const { name, headers, rows } of sheets) {
     const safeName = String(name).replace(/[\\/*?:[\]]/g, '_').slice(0, 31)
@@ -167,10 +179,10 @@ export async function formatWorkbook(sheets) {
     headerRow.height = estimateRowHeight(headerDisplayStrs, colWidths, 28)
 
     headerRow.eachCell({ includeEmpty: true }, (cell) => {
-      cell.font      = { name: 'Calibri', size: FONT_SIZE, bold: true }
-      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG_ARGB } }
+      cell.font = { name: 'Calibri', size: FONT_SIZE, bold: true }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG_ARGB } }
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-      cell.border    = ALL_BORDERS
+      cell.border = ALL_BORDERS
     })
 
     // ── 3. Freeze row 1 ──────────────────────────────────────────────────────
@@ -180,26 +192,26 @@ export async function formatWorkbook(sheets) {
 
     // ── 4. Data rows ─────────────────────────────────────────────────────────
     for (const rowData of rows) {
-      const cellValues  = headers.map((h) => toCellValue(rowData[h]))
+      const cellValues = headers.map((h) => toCellValue(rowData[h]))
       const displayStrs = headers.map((h) => toWidthString(rowData[h]))
 
-      const row    = ws.addRow(cellValues)
-      row.height   = estimateRowHeight(displayStrs, colWidths)
+      const row = ws.addRow(cellValues)
+      row.height = estimateRowHeight(displayStrs, colWidths)
 
       row.eachCell({ includeEmpty: true }, (cell) => {
-        cell.font      = { name: 'Calibri', size: FONT_SIZE }
+        cell.font = { name: 'Calibri', size: FONT_SIZE }
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-        cell.border    = ALL_BORDERS
+        cell.border = ALL_BORDERS
 
         // ── Prevent scientific notation for integer numbers ──────────────────
         // With ExcelJS "General" numFmt, Excel renders e.g. 183012714 as "1.83E+08"
         // when the column is narrower than the full digit string.
         // numFmt '0' forces the full integer display (shows ##### only if truly
         // too narrow, but our WIDTH_FACTOR + CELL_PADDING_UNITS prevents that).
-        if (cell.value instanceof Date) {
-          cell.numFmt = 'dd-mm-yyyy'
-        } else if (typeof cell.value === 'number' && Number.isFinite(cell.value)) {
+        if (typeof cell.value === 'number' && Number.isFinite(cell.value)) {
           cell.numFmt = Number.isInteger(cell.value) ? '0' : 'General'
+        } else if (cell.value instanceof Date) {
+          cell.numFmt = 'dd-mm-yyyy'
         }
       })
     }

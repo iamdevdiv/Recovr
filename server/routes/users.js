@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { employeeId, name, password, role, fosIdentifier } = req.body
+  const { employeeId, name, password, role, fosIdentifiers } = req.body
   if (!employeeId || !name || !password || !role) {
     return res.status(400).json({ message: 'All fields are required.' })
   }
@@ -45,18 +45,33 @@ router.post('/', async (req, res) => {
     return res.status(409).json({ message: 'User already exists.' })
   }
 
+  const normalizedFosIdentifiers = Array.isArray(fosIdentifiers)
+    ? fosIdentifiers.map(s => String(s).trim()).filter(Boolean)
+    : []
+
   const passwordHash = await bcrypt.hash(password, 10)
-  const user = await User.create({ employeeId: employeeId.toUpperCase(), name: name.trim(), passwordHash, role, fosIdentifier: fosIdentifier ? fosIdentifier.trim() : '' })
+  const user = await User.create({
+    employeeId: employeeId.toUpperCase(),
+    name: name.trim(),
+    passwordHash,
+    role,
+    fosIdentifiers: normalizedFosIdentifiers,
+  })
 
   res.status(201).json({ user })
 })
 
 router.put('/:id', async (req, res) => {
-  const { name, role, password, fosIdentifier } = req.body
+  const { name, role, password, fosIdentifiers } = req.body
   const updateData = {}
 
   if (name) updateData.name = name.trim()
-  if (fosIdentifier !== undefined) updateData.fosIdentifier = fosIdentifier.trim()
+
+  if (fosIdentifiers !== undefined) {
+    updateData.fosIdentifiers = Array.isArray(fosIdentifiers)
+      ? fosIdentifiers.map(s => String(s).trim()).filter(Boolean)
+      : []
+  }
 
   if (role) updateData.role = role
   if (password) {

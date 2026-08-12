@@ -27,7 +27,8 @@ export function UsersManagement() {
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('Field Employee')
-  const [fosIdentifier, setFosIdentifier] = useState('')
+  const [fosIdentifiers, setFosIdentifiers] = useState([]) // array of FOS IDs
+  const [fosInput, setFosInput] = useState('')              // current typing value
   const [formError, setFormError] = useState('')
   const [showAddPassword, setShowAddPassword] = useState(false)
   const [showEditPassword, setShowEditPassword] = useState(false)
@@ -127,7 +128,8 @@ export function UsersManagement() {
     setName('')
     setPassword('')
     setRole('Field Employee')
-    setFosIdentifier('')
+    setFosIdentifiers([])
+    setFosInput('')
     setFormError('')
     setShowAddPassword(false)
     setShowAddModal(true)
@@ -138,7 +140,10 @@ export function UsersManagement() {
     setEmployeeId(user.employeeId || '')
     setName(user.name || '')
     setRole(user.role)
-    setFosIdentifier(user.fosIdentifier || '')
+    // Use new fosIdentifiers array
+    const ids = user.fosIdentifiers?.length > 0 ? [...user.fosIdentifiers] : []
+    setFosIdentifiers(ids)
+    setFosInput('')
     setPassword('')
     setFormError('')
     setShowEditPassword(false)
@@ -180,7 +185,7 @@ export function UsersManagement() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: employeeId.toUpperCase(), name, password, role, fosIdentifier })
+        body: JSON.stringify({ employeeId: employeeId.toUpperCase(), name, password, role, fosIdentifiers })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
@@ -203,7 +208,7 @@ export function UsersManagement() {
     setFormError('')
 
     try {
-      const body = { role, employeeId, name, fosIdentifier }
+      const body = { role, employeeId, name, fosIdentifiers }
       if (password) body.password = password
 
       const res = await fetch(`/api/users/${selectedUser._id}`, {
@@ -529,7 +534,18 @@ export function UsersManagement() {
                       {user.role}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 8px' }}>{user.fosIdentifier || <span style={{ color: '#555555' }}>—</span>}</td>
+                  <td style={{ padding: '12px 8px', maxWidth: 200 }}>
+                    {(() => {
+                      const ids = user.fosIdentifiers?.length > 0 ? user.fosIdentifiers : []
+                      return ids.length > 0
+                        ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {ids.map(id => (
+                              <span key={id} style={{ background: '#1a2a2a', color: '#6be2c7', border: '1px solid #2a3a3a', borderRadius: 10, padding: '1px 8px', fontSize: 12, fontWeight: 500 }}>{id}</span>
+                            ))}
+                          </div>
+                        : <span style={{ color: '#555555' }}>—</span>
+                    })()}
+                  </td>
                   <td style={{ padding: '12px 8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
                       {(user.role === 'Field Employee' || user.role === 'Admin' || user.role === 'Manager') && (
@@ -621,13 +637,42 @@ export function UsersManagement() {
               </label>
               <label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <span>FOS Identifier</span><span style={{ fontWeight: 'normal', color: '#777777' }}>(optional)</span>
+                  <span>FOS Identifiers</span><span style={{ fontWeight: 'normal', color: '#777777' }}>(optional)</span>
                 </div>
-                <input
-                  value={fosIdentifier}
-                  onChange={e => setFosIdentifier(e.target.value)}
-                  placeholder="Value to map from excel sheet"
-                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minHeight: 38, background: '#181818', border: `1px solid ${fosInput === ':focus' ? '#6be2c7' : '#2e2e2e'}`, borderRadius: 8, padding: '5px 12px', alignItems: 'center', cursor: 'text', transition: 'border-color .15s' }}
+                  onClick={() => document.getElementById('fosInputAdd').focus()}>
+                  {fosIdentifiers.map(id => (
+                    <span key={id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1a2a2a', color: '#6be2c7', border: '1px solid #2a3a3a', borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 500 }}>
+                      {id}
+                      <button type="button" onClick={() => setFosIdentifiers(prev => prev.filter(x => x !== id))}
+                        style={{ background: 'none', border: 'none', color: '#6be2c7', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 14, opacity: 0.7 }}>×</button>
+                    </span>
+                  ))}
+                  <input id="fosInputAdd" value={fosInput === ':focus' ? '' : fosInput} onChange={e => setFosInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = fosInput.trim()
+                        if (val && !fosIdentifiers.includes(val)) setFosIdentifiers(prev => [...prev, val])
+                        setFosInput('')
+                      } else if (e.key === 'Backspace' && !fosInput) setFosIdentifiers(prev => prev.slice(0, -1))
+                    }}
+                    onFocus={() => {
+                      const el = document.getElementById('fosInputAdd').parentElement;
+                      el.style.borderColor = '#6be2c7';
+                    }}
+                    onBlur={() => { 
+                      const el = document.getElementById('fosInputAdd').parentElement;
+                      el.style.borderColor = '#2e2e2e';
+                      const val = fosInput.trim(); 
+                      if (val && !fosIdentifiers.includes(val)) setFosIdentifiers(prev => [...prev, val]); 
+                      setFosInput('') 
+                    }}
+                    placeholder={fosIdentifiers.length === 0 ? 'Type and press Enter...' : ''}
+                    style={{ border: 'none', outline: 'none', background: 'transparent', color: '#eeeeee', fontSize: 14, flex: 1, minWidth: 80, padding: '2px 0' }}
+                  />
+                </div>
+                <span style={{ fontSize: 11, color: '#555555', marginTop: 4, display: 'block' }}>Press Enter to add each ID</span>
               </label>
 
 
@@ -664,13 +709,42 @@ export function UsersManagement() {
               </label>
               <label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <span>FOS Identifier</span><span style={{ fontWeight: 'normal', color: '#777777' }}>(optional)</span>
+                  <span>FOS Identifiers</span><span style={{ fontWeight: 'normal', color: '#777777' }}>(optional)</span>
                 </div>
-                <input
-                  value={fosIdentifier}
-                  onChange={e => setFosIdentifier(e.target.value)}
-                  placeholder="Value to map from excel sheet"
-                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minHeight: 38, background: '#181818', border: '1px solid #2e2e2e', borderRadius: 8, padding: '5px 12px', alignItems: 'center', cursor: 'text', transition: 'border-color .15s' }}
+                  onClick={() => document.getElementById('fosInputEdit').focus()}>
+                  {fosIdentifiers.map(id => (
+                    <span key={id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1a2a2a', color: '#6be2c7', border: '1px solid #2a3a3a', borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 500 }}>
+                      {id}
+                      <button type="button" onClick={() => setFosIdentifiers(prev => prev.filter(x => x !== id))}
+                        style={{ background: 'none', border: 'none', color: '#6be2c7', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 14, opacity: 0.7 }}>×</button>
+                    </span>
+                  ))}
+                  <input id="fosInputEdit" value={fosInput} onChange={e => setFosInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = fosInput.trim()
+                        if (val && !fosIdentifiers.includes(val)) setFosIdentifiers(prev => [...prev, val])
+                        setFosInput('')
+                      } else if (e.key === 'Backspace' && !fosInput) setFosIdentifiers(prev => prev.slice(0, -1))
+                    }}
+                    onFocus={() => {
+                      const el = document.getElementById('fosInputEdit').parentElement;
+                      el.style.borderColor = '#6be2c7';
+                    }}
+                    onBlur={() => { 
+                      const el = document.getElementById('fosInputEdit').parentElement;
+                      el.style.borderColor = '#2e2e2e';
+                      const val = fosInput.trim(); 
+                      if (val && !fosIdentifiers.includes(val)) setFosIdentifiers(prev => [...prev, val]); 
+                      setFosInput('') 
+                    }}
+                    placeholder={fosIdentifiers.length === 0 ? 'Type and press Enter...' : ''}
+                    style={{ border: 'none', outline: 'none', background: 'transparent', color: '#eeeeee', fontSize: 14, flex: 1, minWidth: 80, padding: '2px 0' }}
+                  />
+                </div>
+                <span style={{ fontSize: 11, color: '#555555', marginTop: 4, display: 'block' }}>Press Enter to add each ID</span>
               </label>
               <label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>

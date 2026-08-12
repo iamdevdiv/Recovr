@@ -402,7 +402,7 @@ export function SheetManagement() {
                           }
                           onDragStart(e, idx);
                         } : undefined}
-                        onDragOver={!isDeleted ? (e) => onDragOver(e, idx) : undefined}
+                        onDragOver={(e) => onDragOver(e, isDeleted ? null : idx)}
                         onDragEnd={!isDeleted ? onDragEnd : undefined}
                       >
                         <div className="drag-handle" style={{ color: '#50708c', display: 'flex', alignItems: 'center', cursor: isDeleted ? 'default' : 'grab', visibility: isDeleted ? 'hidden' : 'visible' }}>

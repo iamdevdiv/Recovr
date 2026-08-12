@@ -66,9 +66,12 @@ router.get('/overview-stats', async (req, res) => {
         // Map FOS identifier to FOS name if available
         let fosName = fosVal || 'UNASSIGNED';
         if (fosVal) {
-          const userMatch = allUsers.find(u => u.fosIdentifier === fosVal);
+          const userMatch = allUsers.find(u => {
+            const ids = u.fosIdentifiers?.length > 0 ? u.fosIdentifiers : []
+            return ids.includes(fosVal)
+          });
           if (userMatch && userMatch.name) {
-            fosName = `${userMatch.name} (${fosVal})`;
+            fosName = userMatch.name;
           }
         }
 
@@ -206,7 +209,7 @@ router.get('/search-counts', async (req, res) => {
   const collection = await Collection.findById(collectionId).lean();
   if (!collection) return res.status(404).json({ message: 'Collection not found.' });
 
-  const query = q.toLowerCase();
+  const query = q.toLowerCase().replace(/\s+/g, ' ').trim();
   const allCases = await Case.find({ collectionId }).lean();
   
   const wbPerm = (user.permissions || {})[collectionId] || {};
@@ -235,7 +238,7 @@ router.get('/search-counts', async (req, res) => {
     let count = 0;
     for (const c of sheetCases) {
       const loanNo = String(c.loanNumber || '').toLowerCase();
-      const custName = String(c.rawData?.[custNameCol] || '').toLowerCase();
+      const custName = String(c.rawData?.[custNameCol] || '').toLowerCase().replace(/\s+/g, ' ').trim();
       
       if (loanNo.includes(query) || custName.includes(query)) {
         count++;
@@ -303,14 +306,22 @@ router.get('/cases', async (req, res) => {
   let totalPos = 0;
   let totalCount = 0;
   const fosMap = {};
+  const fosNameMap = {};
   const overallStatusMap = { statusPos: {}, statusCount: {} };
 
   for (const c of cases) {
     const fosVal = fosCol ? String(c.rawData?.[fosCol] ?? '').trim() : '';
     let fosName = fosVal || 'UNASSIGNED';
     if (fosVal) {
-      const userMatch = allUsers.find(u => u.fosIdentifier === fosVal);
-      if (userMatch?.name) fosName = `${userMatch.name} (${fosVal})`;
+      const userMatch = allUsers.find(u => {
+        const ids = u.fosIdentifiers?.length > 0 ? u.fosIdentifiers : []
+        return ids.includes(fosVal)
+      });
+      if (userMatch?.name) fosName = userMatch.name;
+    }
+
+    if (fosVal) {
+      fosNameMap[fosVal] = fosName;
     }
 
     const posValStr = String(c.rawData?.[posCol] ?? '').replace(/,/g, '');
@@ -353,6 +364,14 @@ router.get('/cases', async (req, res) => {
   }));
   overallStatuses.sort((a, b) => a.status.localeCompare(b.status));
 
+  // Build a label→sourceColumn map for all standard columns (ordered)
+  const sheetOrdered = [...sheet.standardColumns].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const labelToSourceCol = {};
+  for (const sc of sheetOrdered) {
+    const mapping = (sheet.lastMapping || []).find(m => m.standardLabel === sc.label);
+    labelToSourceCol[sc.label] = mapping ? mapping.sourceColumn : sc.label;
+  }
+
   // Map cases to tagData (exclude None values)
   const mappedCases = cases.map(c => {
     const data = c.rawData || {};
@@ -375,6 +394,17 @@ router.get('/cases', async (req, res) => {
         tagCols[tag] = colNames.length > 1 ? colNames : colNames[0];
       }
     }
+
+    // labelData: all standard-column label → value pairs (non-blank, non-None)
+    const labelData = {};
+    for (const [label, srcCol] of Object.entries(labelToSourceCol)) {
+      const val = data[srcCol];
+      const str = val !== null && val !== undefined ? String(val).trim() : '';
+      if (str !== '' && str.toLowerCase() !== 'none') {
+        labelData[label] = val;
+      }
+    }
+
     return {
       _id: c._id,
       loanNumber: c.loanNumber,
@@ -385,18 +415,23 @@ router.get('/cases', async (req, res) => {
       paymentMode: c.paymentMode || '',
       tagData,
       tagCols,
+      labelData,
     };
   });
+
+  const sheetColumnDefs = sheetOrdered.map(sc => ({ label: sc.label, tag: sc.tag || null }));
 
   res.json({
     cases: mappedCases,
     availableTags,
+    sheetColumnDefs,
     stats: {
       total: totalCount,
       totalPos,
       overallStatuses,
       fosStats,
     },
+    fosNameMap,
     sheetName,
     workbookName: collection.name,
     workbookSheets: collection.sheets.map(s => s.name),

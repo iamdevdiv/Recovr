@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
       default: 'Field Employee',
       required: true,
     },
-    fosIdentifier: { type: String, default: '', trim: true },
+    fosIdentifiers: { type: [String], default: [] }, // multiple FOS IDs (OR logic)
     permissions: {
       // Structure: { [workbookId]: { enabled: Boolean, sheets: { [sheetName]: { enabled: Boolean, visibleTags: [String] } } } }
       type: mongoose.Schema.Types.Mixed,

@@ -246,16 +246,15 @@ router.get('/cases', async (req, res) => {
 
   const fosSourceColStr = tagToSourceCol['FOS']
   const fosSourceCols = fosSourceColStr ? fosSourceColStr.split('|||') : []
-  const fosId = user.fosIdentifier || user.employeeId
+  // Collect all FOS identifiers for this user
+  const userFosIds = new Set([user.employeeId, ...(user.fosIdentifiers || [])].filter(Boolean))
 
   const allCases = await Case.find({ collectionId, sheetName }).lean()
   const myFosCases = fosSourceCols.length > 0
     ? allCases.filter(c => {
       return fosSourceCols.some(sc => {
         const fosVal = String(c.rawData?.[sc] ?? '').trim()
-        if (fosVal === user.employeeId) return true;
-        if (user.fosIdentifier && fosVal === user.fosIdentifier) return true;
-        return false;
+        return userFosIds.has(fosVal)
       })
     })
     : allCases
@@ -329,16 +328,15 @@ router.get('/sheet-stats', async (req, res) => {
   const fosSourceCols = fosSourceColStr ? fosSourceColStr.split('|||') : []
   const statusSourceColStr = tagToSourceCol['Status']
   const statusSourceCols = statusSourceColStr ? statusSourceColStr.split('|||') : []
-  const fosId = user.fosIdentifier || user.employeeId
+  // Collect all FOS identifiers for this user
+  const userFosIds = new Set([user.employeeId, ...(user.fosIdentifiers || [])].filter(Boolean))
 
   const allCases = await Case.find({ collectionId, sheetName }).lean()
   const myFosCases = fosSourceCols.length > 0
     ? allCases.filter(c => {
       return fosSourceCols.some(sc => {
         const fosVal = String(c.rawData?.[sc] ?? '').trim()
-        if (fosVal === user.employeeId) return true;
-        if (user.fosIdentifier && fosVal === user.fosIdentifier) return true;
-        return false;
+        return userFosIds.has(fosVal)
       })
     })
     : allCases

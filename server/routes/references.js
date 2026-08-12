@@ -8,6 +8,7 @@ import { User } from '../models/User.js'
 import { tempDir } from '../utils/uploadConfig.js'
 import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, filterCasesByFosPermission } from '../utils/helpers.js'
 import { generateExcelForCollection } from './fos.js'
+import { parseDateString } from '../utils/helpers.js'
 import { createBackup } from '../utils/backupHelper.js'
 
 const router = express.Router()
@@ -154,7 +155,7 @@ router.post('/apply-count/:collectionId', async (req, res) => {
 
     for (const dm of dataMapping) {
       const destCol = sheetMappingMap.get(dm.targetColumn) || dm.targetColumn
-      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? new Date(dm.customText) : refRow[dm.refColumn])
+      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? parseDateString(dm.customText) : refRow[dm.refColumn])
 
       if (refVal === undefined || refVal === null || String(refVal).trim() === '') {
         continue
@@ -279,7 +280,7 @@ router.post('/apply/:collectionId', async (req, res) => {
 
     for (const dm of dataMapping) {
       const destCol = sheetMappingMap.get(dm.targetColumn) || dm.targetColumn
-      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? new Date(dm.customText) : refRow[dm.refColumn])
+      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? parseDateString(dm.customText) : refRow[dm.refColumn])
 
       if (refVal === undefined || refVal === null || String(refVal).trim() === '') {
         continue
@@ -787,7 +788,7 @@ router.post('/apply-preview/:collectionId', async (req, res) => {
 
     for (const dm of dataMapping) {
       const destCol = sheetMappingMap.get(dm.targetColumn) || dm.targetColumn
-      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? new Date(dm.customText) : refRow[dm.refColumn])
+      const refVal = dm.refColumn === '__CUSTOM__' ? dm.customText : (dm.refColumn === '__CUSTOM_DATE__' && dm.customText ? parseDateString(dm.customText) : refRow[dm.refColumn])
 
       if (refVal === undefined || refVal === null || String(refVal).trim() === '') {
         continue

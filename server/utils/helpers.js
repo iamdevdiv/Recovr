@@ -4,6 +4,49 @@ import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
 import { TAGS } from './constants.js'
 
+export function parseDateString(val) {
+  if (val instanceof Date) return val
+  if (!val || String(val).trim().toLowerCase() === 'none') return new Date(NaN)
+  
+  let str = String(val).trim()
+  
+  // 1. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmYMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:\s+(.*))?$/)
+  if (dmYMatch) {
+    const day = parseInt(dmYMatch[1], 10)
+    const month = parseInt(dmYMatch[2], 10) - 1 
+    const year = parseInt(dmYMatch[3], 10)
+    const timePart = dmYMatch[4]
+    
+    if (timePart) {
+      str = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timePart}`
+      return new Date(str)
+    }
+    return new Date(year, month, day)
+  }
+  
+  // 2. DD MMM or DD MMM YYYY (with optional hyphens and time)
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+  const dMmYMatch = str.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})(?:[\s-]+(\d{4}))?(?:\s+(.*))?$/)
+  if (dMmYMatch) {
+    const day = parseInt(dMmYMatch[1], 10)
+    const monthStr = dMmYMatch[2].toLowerCase().substring(0, 3)
+    const month = monthNames.indexOf(monthStr)
+    
+    if (month !== -1) {
+      const year = dMmYMatch[3] ? parseInt(dMmYMatch[3], 10) : new Date().getFullYear()
+      const timePart = dMmYMatch[4]
+      
+      if (timePart) {
+        return new Date(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timePart}`)
+      }
+      return new Date(year, month, day)
+    }
+  }
+  
+  return new Date(str)
+}
+
 export function getEmployeeIdFromReq(req) {
   const auth = req.headers.authorization || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.token || '')
@@ -78,7 +121,7 @@ export async function autoEnablePermissions(collectionId, sheetName, newFosIdent
     $or: [
       { employeeId: { $in: upperFos } },
       { name: { $in: newFosIdentifiers } },
-      { fosIdentifier: { $in: newFosIdentifiers } }
+      { fosIdentifiers: { $in: newFosIdentifiers } }
     ]
   });
 

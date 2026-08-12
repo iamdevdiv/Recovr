@@ -11,39 +11,121 @@ export function Mapping() {
   const ctx = location.state
 
   const [collection, setCollection]   = useState(null)
-  const [stdCols, setStdCols]         = useState([])
+  
+  const [sheetMappings, setSheetMappings] = useState({})
+  const [activeTab, setActiveTab] = useState(ctx?.targetSheetNames?.[0] || '')
+  
   const [genState, setGenState]       = useState('idle')
   const [genError, setGenError]       = useState('')
   const [genResult, setGenResult]     = useState(ctx?.genResult || null)
-  const nextOrder = useRef(0)
+
+  const [showResetPopup, setShowResetPopup] = useState(false)
+  const [showCopyPopup, setShowCopyPopup] = useState(false)
+  const [showGeneratePopup, setShowGeneratePopup] = useState(false)
+  const [copySourceSheet, setCopySourceSheet] = useState('')
+
   const dragTargetRef = useRef(false)
 
-  const { draggedIdx, onDragStart, onDragOver, onDragEnd } = useDragSort(setStdCols)
+  const activeStdCols = sheetMappings[activeTab] || []
+  const setActiveStdCols = (newColsOrFn) => {
+    setSheetMappings(prev => {
+      const current = prev[activeTab] || []
+      const updated = typeof newColsOrFn === 'function' ? newColsOrFn(current) : newColsOrFn
+      return { ...prev, [activeTab]: updated }
+    })
+  }
+
+  const { draggedIdx, onDragStart, onDragOver, onDragEnd } = useDragSort(setActiveStdCols)
 
   useEffect(() => {
     if (!ctx?.collectionId) return
     fetch(`/api/collections/${ctx.collectionId}`).then((r) => r.json()).then((d) => {
-      setCollection(d.collection)
-      const targetSheetName = ctx.targetSheetName || 'Sheet1'
-      const sheet = d.collection.sheets?.find(s => s.name === targetSheetName)
+      const col = d.collection
+      setCollection(col)
       
-      if (sheet && sheet.standardColumns?.length && !ctx.isNewSheet) {
-        const existing = sheet.standardColumns.map((sc) => {
-          const m = sheet.lastMapping?.find((map) => map.standardLabel === sc.label)
-          const isCustom = m?.customText != null
-          return { label: sc.label, order: sc.order, sourceColumn: isCustom ? '__CUSTOM__' : (ctx.sourceColumns?.find((c) => c === m?.sourceColumn) ?? ''), customText: m?.customText || '' }
-        })
-        setStdCols(existing)
-        nextOrder.current = Math.max(0, ...existing.map((c) => c.order)) + 1
-      } else {
-        if (ctx.sourceColumns?.length) {
-          const auto = ctx.sourceColumns.map((col, i) => ({ label: col, order: i, sourceColumn: col, customText: '' }))
-          setStdCols(auto)
-          nextOrder.current = auto.length
+      const initialMappings = {}
+      for (const targetSheetName of (ctx.targetSheetNames || [])) {
+        const sheet = col.sheets?.find(s => s.name === targetSheetName)
+        const isTargetNew = ctx.colMode === 'new' || !sheet
+        
+        if (!isTargetNew && sheet?.standardColumns?.length) {
+          const existing = sheet.standardColumns.map((sc) => {
+            const m = sheet.lastMapping?.find((map) => map.standardLabel === sc.label)
+            const isCustom = m?.customText != null
+            return { 
+              label: sc.label, 
+              order: sc.order, 
+              sourceColumn: isCustom ? '__CUSTOM__' : (ctx.sourceColumns?.find((c) => c === m?.sourceColumn) ?? ''), 
+              customText: m?.customText || '' 
+            }
+          })
+          initialMappings[targetSheetName] = existing
+        } else {
+          if (ctx.sourceColumns?.length) {
+            const auto = ctx.sourceColumns.map((colName, i) => ({ label: colName, order: i, sourceColumn: colName, customText: '' }))
+            initialMappings[targetSheetName] = auto
+          } else {
+            initialMappings[targetSheetName] = []
+          }
         }
       }
+      setSheetMappings(initialMappings)
     }).catch(() => {})
   }, [ctx?.collectionId])
+
+  const resetToDefault = () => {
+    if (!collection) return
+    const sheet = collection.sheets?.find(s => s.name === activeTab)
+    const isTargetNew = ctx.colMode === 'new' || !sheet
+    
+    let defaultCols = []
+    if (!isTargetNew && sheet?.standardColumns?.length) {
+      defaultCols = sheet.standardColumns.map((sc) => {
+        const m = sheet.lastMapping?.find((map) => map.standardLabel === sc.label)
+        const isCustom = m?.customText != null
+        return { 
+          label: sc.label, 
+          order: sc.order, 
+          sourceColumn: isCustom ? '__CUSTOM__' : (ctx.sourceColumns?.find((c) => c === m?.sourceColumn) ?? ''), 
+          customText: m?.customText || '' 
+        }
+      })
+    } else {
+      if (ctx.sourceColumns?.length) {
+        defaultCols = ctx.sourceColumns.map((colName, i) => ({ label: colName, order: i, sourceColumn: colName, customText: '' }))
+      }
+    }
+    setActiveStdCols(defaultCols)
+    setShowResetPopup(false)
+  }
+
+  const copyFromSheet = () => {
+    if (!copySourceSheet) return
+    let copiedCols = []
+    if (sheetMappings[copySourceSheet]) {
+      copiedCols = sheetMappings[copySourceSheet].map((c, i) => ({ ...c, order: i }))
+    } else {
+      const sheet = collection?.sheets?.find(s => s.name === copySourceSheet)
+      if (sheet && sheet.standardColumns) {
+        copiedCols = sheet.standardColumns.map((sc, i) => {
+          const m = sheet.lastMapping?.find((map) => map.standardLabel === sc.label)
+          const isCustom = m?.customText != null
+          return { 
+            label: sc.label, 
+            order: i, 
+            sourceColumn: isCustom ? '__CUSTOM__' : (ctx.sourceColumns?.find((c) => c === m?.sourceColumn) ?? ''), 
+            customText: m?.customText || '' 
+          }
+        })
+      }
+    }
+    
+    if (copiedCols.length > 0) {
+      setActiveStdCols(copiedCols)
+    }
+    setShowCopyPopup(false)
+    setCopySourceSheet('')
+  }
 
   function handleDone() {
     navigate('/admin/upload')
@@ -52,9 +134,26 @@ export function Mapping() {
   if (!ctx) return <div className="admin-content"><div className="empty-state" style={{ marginTop: 60 }}><Icon name="mapping" size={36} /><p>No import in progress.</p><small>Upload and import a lot first to map its columns.</small></div></div>
 
   async function generate() {
-    const activeCols = stdCols.filter((c) => !c._delete)
-    const validCols = activeCols.filter((c) => c.label.trim())
-    if (!validCols.length) { setGenError('Add at least one standard column.'); return }
+    const payloadMappings = {}
+    for (const sheetName of (ctx.targetSheetNames || [])) {
+      const cols = sheetMappings[sheetName] || []
+      const activeCols = cols.filter((c) => !c._delete)
+      const validCols = activeCols.filter((c) => c.label.trim())
+      if (!validCols.length) { 
+        setGenError(`Add at least one standard column for sheet "${sheetName}".`); 
+        return 
+      }
+      payloadMappings[sheetName] = {
+        standardColumns: validCols.map((c, i) => ({ label: c.label.trim(), order: i })),
+        mapping: validCols.filter((c) => c.sourceColumn).map((c) => ({
+          sourceColumn: c.sourceColumn === '__CUSTOM__' || c.sourceColumn === '__CUSTOM_DATE__' ? '' : c.sourceColumn,
+          customText: c.sourceColumn === '__CUSTOM__' || c.sourceColumn === '__CUSTOM_DATE__' ? (c.customText || '') : undefined,
+          isCustomDate: c.sourceColumn === '__CUSTOM_DATE__',
+          standardLabel: c.label.trim()
+        }))
+      }
+    }
+
     setGenState('generating'); setGenError('')
     try {
       const res  = await fetch(`/api/collections/${ctx.collectionId}/generate`, {
@@ -63,16 +162,9 @@ export function Mapping() {
         body: JSON.stringify({ 
           tempId: ctx.tempId, 
           newCaseIds: ctx.newCaseIds, 
-          sheetNames: ctx.targetSheetNames || [],
           isNewWorkbook: ctx.colMode === 'new',
-          isNewSheet: ctx.isNewSheet || false,
-          standardColumns: validCols.map((c, i) => ({ label: c.label.trim(), order: i })), 
-          mapping: validCols.filter((c) => c.sourceColumn).map((c) => ({ 
-            sourceColumn: c.sourceColumn === '__CUSTOM__' || c.sourceColumn === '__CUSTOM_DATE__' ? '' : c.sourceColumn, 
-            customText: c.sourceColumn === '__CUSTOM__' || c.sourceColumn === '__CUSTOM_DATE__' ? (c.customText || '') : undefined, 
-            isCustomDate: c.sourceColumn === '__CUSTOM_DATE__',
-            standardLabel: c.label.trim() 
-          })) 
+          isNewSheet: ctx.isNewSheet || false, // this is passed but backend generates independently per sheet now
+          sheetMappings: payloadMappings
         })
       })
       const data = await res.json()
@@ -123,19 +215,54 @@ export function Mapping() {
     )
   }
 
+  const allAvailableSheets = new Set()
+  if (collection?.sheets) {
+    collection.sheets.forEach(s => allAvailableSheets.add(s.name))
+  }
+  if (ctx?.targetSheetNames) {
+    ctx.targetSheetNames.forEach(n => allAvailableSheets.add(n))
+  }
+  allAvailableSheets.delete(activeTab)
+
   return (
     <div className="admin-content">
       <div className="admin-heading">
         <div><span className="eyebrow">COLUMN MAPPING · {ctx.collectionName}</span><h1>Map columns for import</h1></div>
         <button className="outlined-button" onClick={handleDone}>← Back</button>
       </div>
-      <section className="panel std-cols-panel" style={{ marginTop: 20 }}>
-        <div className="panel-heading">
-          <div><h2>Standard columns</h2><p>Drag to reorder. Map each column to a source column from the uploaded file.</p></div>
+      
+      {(ctx.targetSheetNames?.length > 1) && (
+        <div className="col-mode-toggle" style={{ marginTop: 24 }}>
+          {ctx.targetSheetNames.map(sheetName => (
+            <button 
+              key={sheetName} 
+              className={activeTab === sheetName ? 'active' : ''} 
+              onClick={() => setActiveTab(sheetName)}
+            >
+              {sheetName}
+            </button>
+          ))}
         </div>
+      )}
+
+      <section className="panel std-cols-panel" style={{ marginTop: ctx.targetSheetNames?.length > 1 ? 16 : 24 }}>
+        <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h2>Standard columns - {activeTab}</h2>
+            <p>Drag to reorder. Map each column to a source column from the uploaded file.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="outlined-button" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setShowCopyPopup(true)}>
+              <Icon name="copy" size={12} /> Copy from...
+            </button>
+            <button className="outlined-button" style={{ padding: '6px 12px', fontSize: 13, color: '#e88080', borderColor: '#4a2525' }} onClick={() => setShowResetPopup(true)}>
+              <Icon name="undo" size={12} /> Reset to default
+            </button>
+          </div>
+        </div>
+        
         <div className="std-col-list">
-          {/* Subtle Add Button at the very top */}
-          {stdCols.length > 0 && (
+          {activeStdCols.length > 0 && (
             <div
               className="subtle-add-row"
               style={{
@@ -146,9 +273,9 @@ export function Mapping() {
                 title="Insert column here"
                 onClick={(e) => {
                   e.stopPropagation()
-                  const newCols = [...stdCols]
+                  const newCols = [...activeStdCols]
                   newCols.unshift({ label: '', sourceColumn: '', order: Date.now() })
-                  setStdCols(newCols)
+                  setActiveStdCols(newCols)
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
                 onMouseLeave={(e) => e.currentTarget.style.opacity = 0.2}
@@ -159,7 +286,7 @@ export function Mapping() {
           )}
           {(() => {
             let count = 0;
-            return stdCols.map((col, idx) => {
+            return activeStdCols.map((col, idx) => {
               const isDeleted = col._delete;
               if (!isDeleted) count++;
               return (
@@ -178,10 +305,9 @@ export function Mapping() {
                       }
                       onDragStart(e, idx);
                     } : undefined}
-                    onDragOver={!isDeleted ? (e) => onDragOver(e, idx) : undefined}
+                    onDragOver={(e) => onDragOver(e, isDeleted ? null : idx)}
                     onDragEnd={!isDeleted ? onDragEnd : undefined}
                   >
-                    {/* Drag handle */}
                     <div className="drag-handle" style={{ color: '#50708c', display: 'flex', alignItems: 'center', cursor: isDeleted ? 'default' : 'grab', visibility: isDeleted ? 'hidden' : 'visible' }}>
                       <Icon name="drag" size={16} />
                     </div>
@@ -189,7 +315,7 @@ export function Mapping() {
                     <input
                       className="std-col-label"
                       value={col.label}
-                      onChange={(e) => setStdCols((p) => p.map((c) => c.order === col.order ? { ...c, label: e.target.value } : c))}
+                      onChange={(e) => setActiveStdCols((p) => p.map((c) => c.order === col.order ? { ...c, label: e.target.value } : c))}
                       placeholder="Column name"
                       style={isDeleted ? { textDecoration: 'line-through', opacity: 0.7 } : {}}
                       disabled={isDeleted}
@@ -199,7 +325,7 @@ export function Mapping() {
                       <select
                         className={`std-col-source ${!col.sourceColumn && !isDeleted ? 'unmapped' : ''}`}
                         value={col.sourceColumn}
-                        onChange={(e) => setStdCols((p) => p.map((c) => c.order === col.order ? { ...c, sourceColumn: e.target.value } : c))}
+                        onChange={(e) => setActiveStdCols((p) => p.map((c) => c.order === col.order ? { ...c, sourceColumn: e.target.value } : c))}
                         style={col.sourceColumn === '__CUSTOM__' ? { width: 'auto', flex: '0 0 auto' } : { width: '100%' }}
                         disabled={isDeleted}
                       >
@@ -212,7 +338,7 @@ export function Mapping() {
                         <input
                           className="std-col-custom"
                           value={col.customText || ''}
-                          onChange={(e) => setStdCols((p) => p.map((c) => c.order === col.order ? { ...c, customText: e.target.value } : c))}
+                          onChange={(e) => setActiveStdCols((p) => p.map((c) => c.order === col.order ? { ...c, customText: e.target.value } : c))}
                           placeholder="Enter text"
                           style={{ flex: '1 1 0' }}
                           disabled={isDeleted}
@@ -223,18 +349,17 @@ export function Mapping() {
                           type="date"
                           className="std-col-custom"
                           value={col.customText || ''}
-                          onChange={(e) => setStdCols((p) => p.map((c) => c.order === col.order ? { ...c, customText: e.target.value } : c))}
+                          onChange={(e) => setActiveStdCols((p) => p.map((c) => c.order === col.order ? { ...c, customText: e.target.value } : c))}
                           style={{ flex: '1 1 0' }}
                           disabled={isDeleted}
                         />
                       )}
                     </div>
-                    <button className="icon-button filter-remove" title={isDeleted ? "Restore column" : "Delete column"} onClick={() => setStdCols((p) => p.map((c) => c.order === col.order ? { ...c, _delete: !c._delete } : c))}>
+                    <button className="icon-button filter-remove" title={isDeleted ? "Restore column" : "Delete column"} onClick={() => setActiveStdCols((p) => p.map((c) => c.order === col.order ? { ...c, _delete: !c._delete } : c))}>
                       <Icon name={isDeleted ? "undo" : "trash"} size={14} />
                     </button>
                   </div>
                   
-                  {/* Subtle Add Button */}
                   {!isDeleted && (
                     <div
                       className="subtle-add-row"
@@ -246,9 +371,9 @@ export function Mapping() {
                         title="Insert column here"
                         onClick={(e) => {
                           e.stopPropagation()
-                          const newCols = [...stdCols]
+                          const newCols = [...activeStdCols]
                           newCols.splice(idx + 1, 0, { label: '', sourceColumn: '', order: Date.now() })
-                          setStdCols(newCols)
+                          setActiveStdCols(newCols)
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
                         onMouseLeave={(e) => e.currentTarget.style.opacity = 0.2}
@@ -262,16 +387,14 @@ export function Mapping() {
             })
           })()}
         </div>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button className="outlined-button" onClick={() => setStdCols((p) => [...p, { label: '', order: nextOrder.current++, sourceColumn: '' }])}>
-            <Icon name="plus" size={14} /> Add column
-          </button>
-          <button className="primary-button" disabled={genState === 'generating' || !stdCols.some((c) => c.label)} onClick={generate} style={{ flex: 1 }}>
-            {genState === 'generating' ? 'Generating…' : 'Generate Excel & finish'}
-          </button>
-        </div>
       </section>
+
+      <div style={{ marginTop: 24, textAlign: 'right' }}>
+        <button className="primary-button" disabled={genState === 'generating'} onClick={() => setShowGeneratePopup(true)}>
+          {genState === 'generating' ? 'Generating…' : 'Generate Excel & finish'}
+        </button>
+      </div>
+
       {(genError || downloadError) && (
         <div style={{
           position: 'fixed',
@@ -292,6 +415,77 @@ export function Mapping() {
           <span style={{ color: '#e88080', fontSize: 13, fontWeight: 600 }}>{genError || downloadError}</span>
         </div>
       )}
+
+      {showResetPopup && (
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowResetPopup(false) }}>
+          <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }}>
+            <button className="close-button" type="button" onClick={() => setShowResetPopup(false)}><Icon name="close" size={20} /></button>
+            <span className="eyebrow" style={{ color: '#e88080' }}>RESET MAPPING</span>
+            <h2 style={{ marginBottom: 12 }}>Reset {activeTab}?</h2>
+            <p style={{ margin: 0, color: '#888888', fontSize: 13, lineHeight: 1.5 }}>
+              Are you sure you want to reset the mapping for <strong>{activeTab}</strong> to its default structure? All unsaved changes will be lost.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+              <button type="button" className="outlined-button" onClick={() => setShowResetPopup(false)} style={{ flex: 1 }}>Cancel</button>
+              <button type="button" className="primary-button" style={{ background: '#a13b3b', borderColor: '#a13b3b', flex: 1 }} onClick={resetToDefault}>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCopyPopup && (
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowCopyPopup(false) }}>
+          <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }}>
+            <button className="close-button" type="button" onClick={() => setShowCopyPopup(false)}><Icon name="close" size={20} /></button>
+            <span className="eyebrow" style={{ color: '#50708c' }}>COPY MAPPING</span>
+            <h2 style={{ marginBottom: 12 }}>Copy into {activeTab}?</h2>
+            <p style={{ margin: 0, color: '#888888', fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
+              Select another sheet to copy its standard columns and mapping structure into <strong>{activeTab}</strong>. Existing columns will be overwritten.
+            </p>
+            
+            <select 
+              className="fos-ptp-input" 
+              style={{ width: '100%', marginBottom: 24 }} 
+              value={copySourceSheet} 
+              onChange={e => setCopySourceSheet(e.target.value)}
+            >
+              <option value="">— Select a sheet —</option>
+              {Array.from(allAvailableSheets).map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" className="outlined-button" onClick={() => setShowCopyPopup(false)} style={{ flex: 1 }}>Cancel</button>
+              <button type="button" className="primary-button" style={{ flex: 1 }} onClick={copyFromSheet} disabled={!copySourceSheet}>
+                Copy Structure
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGeneratePopup && (
+        <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowGeneratePopup(false) }}>
+          <div className="modal" style={{ maxWidth: 360, textAlign: 'left', cursor: 'default' }}>
+            <button className="close-button" type="button" onClick={() => setShowGeneratePopup(false)}><Icon name="close" size={20} /></button>
+            <span className="eyebrow" style={{ color: '#50708c' }}>GENERATE EXCEL</span>
+            <h2 style={{ marginBottom: 12 }}>Proceed with Generation?</h2>
+            <p style={{ margin: 0, color: '#888888', fontSize: 13, lineHeight: 1.5 }}>
+              Are you sure you want to generate the Excel file? Ensure you have verified the mapping structure for <strong>all</strong> sheets before proceeding.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+              <button type="button" className="outlined-button" onClick={() => setShowGeneratePopup(false)} style={{ flex: 1 }}>Cancel</button>
+              <button type="button" className="primary-button" style={{ flex: 1 }} onClick={() => { setShowGeneratePopup(false); generate(); }}>
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

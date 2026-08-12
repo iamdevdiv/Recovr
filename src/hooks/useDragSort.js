@@ -72,6 +72,8 @@ export function useDragSort(setItems) {
     e.preventDefault()
     updateScroll(e.clientY)
 
+    if (idx === undefined || idx === null) return
+
     const from = liveIdx.current
     if (from === null || from === idx) return
 

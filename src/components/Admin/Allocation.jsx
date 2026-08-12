@@ -55,7 +55,7 @@ export function Allocation() {
       const res = await fetch('/api/users')
       const data = await res.json()
       // Use both field employees and any others with an FOS Identifier just in case
-      setUsers((data.users || []).filter(u => u.role === 'Field Employee' || u.fosIdentifier))
+      setUsers((data.users || []).filter(u => u.role === 'Field Employee' || (u.fosIdentifiers && u.fosIdentifiers.length > 0)))
     } catch (err) {
       console.error(err)
     }
@@ -121,18 +121,27 @@ export function Allocation() {
     let result = cases
 
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = search.toLowerCase().replace(/\s+/g, ' ').trim()
       result = result.filter(c =>
         (c.loanNumber != null && String(c.loanNumber).toLowerCase().includes(q)) ||
-        (c.customerName != null && String(c.customerName).toLowerCase().includes(q))
+        (c.customerName != null && String(c.customerName).toLowerCase().replace(/\s+/g, ' ').trim().includes(q))
       )
     }
 
     if (filteredFos) {
       if (filteredFos === 'UNALLOCATED') {
-        result = result.filter(c => !users.some(u => (u.fosIdentifier || u.employeeId) === c.fos))
+        result = result.filter(c => {
+          const caseFos = String(c.fos || '').trim()
+          return !users.some(u => [u.employeeId, ...(u.fosIdentifiers || [])].includes(caseFos))
+        })
       } else {
-        result = result.filter(c => c.fos === filteredFos)
+        const selectedUser = users.find(u => u.employeeId === filteredFos)
+        if (selectedUser) {
+          const userFosIds = [selectedUser.employeeId, ...(selectedUser.fosIdentifiers || [])]
+          result = result.filter(c => userFosIds.includes(String(c.fos || '').trim()))
+        } else {
+          result = result.filter(c => String(c.fos || '').trim() === filteredFos)
+        }
       }
     }
 
@@ -248,25 +257,25 @@ export function Allocation() {
                 >
                   <div style={{ fontSize: 12, color: filteredFos === 'UNALLOCATED' ? '#fff' : '#e74c3c', fontWeight: 600, marginBottom: 4 }}>Unallocated</div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {cases.filter(c => !users.some(u => (u.fosIdentifier || u.employeeId) === c.fos)).length}
-                    {cases.filter(c => !users.some(u => (u.fosIdentifier || u.employeeId) === c.fos) && c.newCase).length > 0 && (
-                      <span style={{ fontSize: 11, background: 'rgba(231, 76, 60, 0.2)', color: filteredFos === 'UNALLOCATED' ? '#fff' : '#e74c3c', border: `1px solid ${filteredFos === 'UNALLOCATED' ? 'rgba(255,255,255,0.4)' : '#e74c3c'}`, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{cases.filter(c => !users.some(u => (u.fosIdentifier || u.employeeId) === c.fos) && c.newCase).length} New</span>
+                    {cases.filter(c => !users.some(u => [u.employeeId, ...(u.fosIdentifiers || [])].includes(String(c.fos || '').trim()))).length}
+                    {cases.filter(c => !users.some(u => [u.employeeId, ...(u.fosIdentifiers || [])].includes(String(c.fos || '').trim())) && c.newCase).length > 0 && (
+                      <span style={{ fontSize: 11, background: 'rgba(231, 76, 60, 0.2)', color: filteredFos === 'UNALLOCATED' ? '#fff' : '#e74c3c', border: `1px solid ${filteredFos === 'UNALLOCATED' ? 'rgba(255,255,255,0.4)' : '#e74c3c'}`, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{cases.filter(c => !users.some(u => [u.employeeId, ...(u.fosIdentifiers || [])].includes(String(c.fos || '').trim())) && c.newCase).length} New</span>
                     )}
                   </div>
                 </div>
                 {users.map(u => {
-                  const fosId = u.fosIdentifier || u.employeeId;
-                  const fosCases = cases.filter(c => c.fos === fosId);
+                  const userFosIds = [u.employeeId, ...(u.fosIdentifiers || [])];
+                  const fosCases = cases.filter(c => userFosIds.includes(String(c.fos || '').trim()));
                   const count = fosCases.length;
                   if (count === 0) return null;
                   
-                  const isSelected = filteredFos === fosId;
+                  const isSelected = filteredFos === u.employeeId;
                   const newCount = fosCases.filter(c => c.newCase).length;
                   
                   return (
                     <div 
                       key={u._id} 
-                      onClick={() => setFilteredFos(isSelected ? null : fosId)}
+                      onClick={() => setFilteredFos(isSelected ? null : u.employeeId)}
                       style={{ background: isSelected ? '#3a4f64' : '#252525', border: isSelected ? '1px solid #5a6f84' : '1px solid #2a3f54', borderRadius: 8, padding: '12px 16px', minWidth: 150, cursor: 'pointer', transition: 'all 0.2s' }}
                     >
                       <div style={{ fontSize: 12, color: isSelected ? '#fff' : '#777777', fontWeight: 600, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={u.name}>{u.name}</div>
@@ -338,7 +347,9 @@ export function Allocation() {
                             </td>
                             <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>{c.customerName || '—'}</div>
+                                <div style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>
+                                  {String(c.customerName || '—').replace(/\s+\.$/, '').trim()}
+                                </div>
                                 {c.newCase && (
                                   <span style={{ padding: '2px 6px', background: 'rgba(52, 152, 219, 0.2)', border: '1px solid rgba(52, 152, 219, 0.5)', color: '#3498db', fontSize: 10, borderRadius: 4, fontWeight: 'bold' }}>
                                     {String(c.newCase).toUpperCase()}
@@ -357,24 +368,40 @@ export function Allocation() {
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                   {(() => {
-                                    const isAllocated = users.some(u => (u.fosIdentifier || u.employeeId) === c.fos)
+                                    const caseFos = String(c.fos || '').trim()
+                                    const assignedUser = users.find(u => [u.employeeId, ...(u.fosIdentifiers || [])].includes(caseFos))
+                                    
+                                    let selectedVal = ''
+                                    if (assignedUser) {
+                                      const ids = assignedUser.fosIdentifiers?.length > 0 ? assignedUser.fosIdentifiers : []
+                                      const exactMatch = ids.find(id => id.toLowerCase() === caseFos.toLowerCase())
+                                      if (exactMatch) {
+                                        selectedVal = exactMatch
+                                      } else {
+                                        selectedVal = ids[0] || ''
+                                      }
+                                    }
+
                                     return (
                                       <select
-                                        value={isAllocated ? c.fos : ''}
+                                        value={selectedVal}
                                         onClick={e => e.stopPropagation()}
                                         onChange={e => allocateCase(c._id, e.target.value)}
                                         disabled={allocationLoading}
                                         style={{
                                           maxWidth: 200,
-                                          ...(isAllocated ? {} : { background: '#e74c3c22', borderColor: '#e74c3c' })
+                                          ...(assignedUser ? {} : { background: '#e74c3c22', borderColor: '#e74c3c' })
                                         }}
                                       >
                                         <option value="" style={{ background: '#252525', color: '#fff' }}>-- Unallocated --</option>
-                                        {users.map(u => (
-                                          <option key={u._id} value={u.fosIdentifier || u.employeeId} style={{ background: '#252525', color: '#fff' }}>
-                                            {u.name} ({u.fosIdentifier || 'No ID'})
-                                          </option>
-                                        ))}
+                                        {users.flatMap(u => {
+                                          const ids = u.fosIdentifiers?.length > 0 ? u.fosIdentifiers : []
+                                          return ids.map((id, idx) => (
+                                            <option key={`${u._id}_${idx}`} value={id} style={{ background: '#252525', color: '#fff' }}>
+                                              {u.name} - {id}
+                                            </option>
+                                          ))
+                                        })}
                                       </select>
                                     )
                                   })()}

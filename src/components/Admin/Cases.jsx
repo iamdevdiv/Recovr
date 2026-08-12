@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Icon, formatDetailValue } from '../Shared.jsx'
+import { Icon, formatDetailValue, parseDateString } from '../Shared.jsx'
 
 function getToken() {
   return localStorage.getItem('collectionAssistToken') || sessionStorage.getItem('collectionAssistToken') || ''
@@ -149,7 +149,7 @@ function MasterEditField({ caseId, tag, sourceCol, value, fullString, replaceTar
     let initial = value || ''
     if (initial) {
       try {
-        const d = new Date(initial)
+        const d = parseDateString(initial)
         if (!isNaN(d)) {
           const pad = n => n.toString().padStart(2, '0')
           const ymd = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -173,7 +173,7 @@ function MasterEditField({ caseId, tag, sourceCol, value, fullString, replaceTar
     let payloadVal = val
     if (val && (isDate || isTime)) {
       try {
-        const oldD = new Date(value)
+        const oldD = parseDateString(value)
         const d = isNaN(oldD) ? new Date() : oldD
         if (isDate && !isTime) {
           const [y, m, dNum] = val.split('-')
@@ -313,7 +313,7 @@ function InlineQuickEdit({ caseData, onUpdate, testMode, masterMode }) {
     const s = String(val || '').trim()
     if (!s || s.toLowerCase() === 'none') return ''
     try {
-      const d = new Date(s)
+      const d = parseDateString(s)
       if (isNaN(d)) return '' // Invalid date fallback to empty
       const pad = n => n.toString().padStart(2, '0')
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -477,7 +477,7 @@ function InlineQuickEdit({ caseData, onUpdate, testMode, masterMode }) {
 }
 
 // ── Case Row ──────────────────────────────────────────────────────────────────
-function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdate, isSelected, onToggleSelect }) {
+function CaseRow({ caseData, index, availableTags, sheetColumnDefs, masterMode, testMode, onUpdate, isSelected, onToggleSelect }) {
   const [expanded, setExpanded] = useState(false)
   const [copiedLoan, setCopiedLoan] = useState(false)
   const [copiedName, setCopiedName] = useState(false)
@@ -497,7 +497,7 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
         const err = await res.json()
         setDeleteError(err.message || 'Unknown error deleting case')
       }
-    } catch(err) {
+    } catch (err) {
       setDeleteError('Network error deleting case')
     }
     setDeleting(false)
@@ -670,6 +670,42 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
     )
   }
 
+  // ── Additional untagged label fields from labelData ────────────────────────
+  // Show columns from sheetColumnDefs that have a value in labelData but whose
+  // tag (if any) is NOT already rendered above (not in expandTags or INLINE_KNOWN),
+  // AND that have no tag at all OR whose tag is not in availableTags.
+  const labelData = caseData.labelData || {}
+  // Build set of labels whose tags are already covered by tag-based rendering
+  const coveredByTag = new Set()
+  for (const colDef of (sheetColumnDefs || [])) {
+    if (colDef.tag && availableTags.includes(colDef.tag)) {
+      coveredByTag.add(colDef.label)
+    }
+  }
+  // Inline-visible tags → labels to skip
+  const inlineVisibleTags = new Set(INLINE_KNOWN)
+  for (const colDef of (sheetColumnDefs || [])) {
+    if (colDef.tag && inlineVisibleTags.has(colDef.tag)) {
+      coveredByTag.add(colDef.label)
+    }
+  }
+
+  for (const colDef of (sheetColumnDefs || [])) {
+    const { label } = colDef
+    // Skip if covered by a tag that was already rendered
+    if (coveredByTag.has(label)) continue
+    const val = labelData[label]
+    if (val === null || val === undefined) continue
+    const str = String(val).trim()
+    if (str === '' || str.toLowerCase() === 'none') continue
+    expandTagElements.push(
+      <div key={`label_${label}`} className="fos-detail-item">
+        <span className="fos-detail-label">{label}</span>
+        <strong className="fos-detail-val">{formatDetailValue(label, val)}</strong>
+      </div>
+    )
+  }
+
   function handleFieldMasterUpdate(tag, val, sourceCol) {
     if (sourceCol) {
       // It's hard to update local tags precisely when we just have sourceCol, especially if it's a regex replacement.
@@ -749,10 +785,10 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
           <div className="ac-row-expand-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {masterMode && (localStorage.getItem('collectionAssistRole') || sessionStorage.getItem('collectionAssistRole')) === 'Admin' && (
               <>
-                <button 
-                  className="fos-copy-btn-small" 
-                  style={{ color: '#e88080' }} 
-                  title="Delete this case" 
+                <button
+                  className="fos-copy-btn-small"
+                  style={{ color: '#e88080' }}
+                  title="Delete this case"
                   onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
                 >
                   <Icon name="trash" size={14} />
@@ -876,7 +912,7 @@ function CaseRow({ caseData, index, availableTags, masterMode, testMode, onUpdat
 
 
 // ── Group Node ─────────────────────────────────────────────────────────────────
-function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate, caseIndexMap, selectedCases, onToggleSelect, onToggleGroupSelect }) {
+function GroupNode({ node, depth, availableTags, sheetColumnDefs, masterMode, testMode, onUpdate, caseIndexMap, selectedCases, onToggleSelect, onToggleGroupSelect }) {
   const [collapsed, setCollapsed] = useState(false)
 
   if (!node.isGroup) {
@@ -885,6 +921,7 @@ function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate,
         caseData={node}
         index={caseIndexMap[String(node._id)] ?? 0}
         availableTags={availableTags}
+        sheetColumnDefs={sheetColumnDefs}
         masterMode={masterMode}
         testMode={testMode}
         onUpdate={onUpdate}
@@ -941,6 +978,7 @@ function GroupNode({ node, depth, availableTags, masterMode, testMode, onUpdate,
               key={child.isGroup ? `${child.label}__${depth}__${i}` : String(child._id)}
               node={child} depth={depth + 1}
               availableTags={availableTags}
+              sheetColumnDefs={sheetColumnDefs}
               masterMode={masterMode} testMode={testMode}
               onUpdate={onUpdate} caseIndexMap={caseIndexMap}
               selectedCases={selectedCases} onToggleSelect={onToggleSelect} onToggleGroupSelect={onToggleGroupSelect}
@@ -963,7 +1001,9 @@ export function Cases() {
   const [cases, setCases] = useState([])
   const [originalCases, setOriginalCases] = useState([])
   const [stats, setStats] = useState(null)
+  const [fosNameMap, setFosNameMap] = useState({})
   const [availableTags, setAvailableTags] = useState([])
+  const [sheetColumnDefs, setSheetColumnDefs] = useState([]) // [{label, tag}] ordered
   const [workbookName, setWorkbookName] = useState('')
   const [workbookSheets, setWorkbookSheets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1118,7 +1158,9 @@ export function Cases() {
       }
       setOriginalCases(data.cases || [])
       setStats(data.stats || null)
+      setFosNameMap(data.fosNameMap || {})
       setAvailableTags(data.availableTags || [])
+      setSheetColumnDefs(data.sheetColumnDefs || [])
       setWorkbookName(data.workbookName || '')
       setWorkbookSheets(data.workbookSheets || [])
       setCollectionMonth(data.collectionMonth || '')
@@ -1155,7 +1197,7 @@ export function Cases() {
     }
     const q = search.trim()
     const controller = new AbortController()
-    
+
     const timeoutId = setTimeout(() => {
       fetch(`/api/admin/search-counts?collectionId=${collectionId}&q=${encodeURIComponent(q)}`, {
         headers: authHeaders(),
@@ -1165,9 +1207,9 @@ export function Cases() {
         .then(d => {
           if (d.counts) setOtherSheetCounts(d.counts)
         })
-        .catch(() => {})
+        .catch(() => { })
     }, 300)
-    
+
     return () => {
       clearTimeout(timeoutId)
       controller.abort()
@@ -1365,10 +1407,10 @@ export function Cases() {
 
   const filteredCases = useMemo(() => {
     if (!search.trim()) return cases
-    const q = search.toLowerCase()
+    const q = search.toLowerCase().replace(/\s+/g, ' ').trim()
     return cases.filter(c =>
       String(c.loanNumber || '').toLowerCase().includes(q) ||
-      String(c.tagData?.['Customer Name'] || '').toLowerCase().includes(q)
+      String(c.tagData?.['Customer Name'] || '').toLowerCase().replace(/\s+/g, ' ').trim().includes(q)
     )
   }, [cases, search])
 
@@ -1381,6 +1423,7 @@ export function Cases() {
       const rawVal = origTagData?.[key]
       let groupVal = (!rawVal || String(rawVal).trim() === '' || String(rawVal).trim().toLowerCase() === 'none')
         ? 'Unassigned' : String(rawVal).trim()
+      if (key === 'FOS' && fosNameMap[groupVal]) groupVal = fosNameMap[groupVal]
       if (key === 'New Case' && groupVal === 'Unassigned') groupVal = 'Old'
 
       if (!groupMap.has(groupVal)) groupMap.set(groupVal, [])
@@ -1392,6 +1435,7 @@ export function Cases() {
         const curRawVal = c.tagData?.[key]
         let curVal = (!curRawVal || String(curRawVal).trim() === '' || String(curRawVal).trim().toLowerCase() === 'none')
           ? 'Unassigned' : String(curRawVal).trim()
+        if (key === 'FOS' && fosNameMap[curVal]) curVal = fosNameMap[curVal]
         if (key === 'New Case' && curVal === 'Unassigned') curVal = 'Old'
         if (curVal === label) currentCount++
       }
@@ -1482,84 +1526,84 @@ export function Cases() {
 
         {/* ── Desktop Combined Sticky Section ── */}
         <div className="ac-desktop-combined-sticky">
-        {/* ── Non-Sticky Top Section ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#111111' }}>
-          {/* Sheet Tabs Row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px 12px', overflowX: 'auto' }} className="hide-scrollbar">
-            <span style={{ color: '#777777', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Sheets:</span>
-            {workbookSheets.map(sName => {
-              const isActive = sName === sheetName
-              const count = otherSheetCounts[sName]
-              return (
-                <button
-                  key={sName}
-                  onClick={() => {
-                    if (!isActive) {
-                      setSearchParams({ collectionId, sheetName: sName })
-                    }
-                  }}
-                  style={{
-                    background: isActive ? '#1e1e1e' : 'transparent',
-                    color: isActive ? '#8be8d8' : '#777777',
-                    border: `1px solid ${isActive ? '#2e2e2e' : 'transparent'}`,
-                    padding: '4px 12px',
-                    borderRadius: 12,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
-                >
-                  {sName}
-                  {!isActive && count > 0 && (
-                    <span style={{ background: '#6be2c7', color: '#111111', padding: '0 6px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── Sticky Top Section ── */}
-        <div className="ac-sticky-top-section" style={{ position: 'sticky', top: 0, zIndex: 30, background: '#111111', borderBottom: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', paddingBottom: 10, paddingTop: 10 }}>          {/* Controls Bar */}
-          <div className="ac-controls" style={{ padding: '0 22px' }}>
-            <div className="ac-search">
-              <Icon name="search" size={15} />
-              <input
-                type="text"
-                placeholder="Search by loan number or customer name..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className="ac-search-clear" onClick={() => setSearch('')}><Icon name="close" size={13} /></button>
-              )}
+          {/* ── Non-Sticky Top Section ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', background: '#111111' }}>
+            {/* Sheet Tabs Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px 12px', overflowX: 'auto' }} className="hide-scrollbar">
+              <span style={{ color: '#777777', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Sheets:</span>
+              {workbookSheets.map(sName => {
+                const isActive = sName === sheetName
+                const count = otherSheetCounts[sName]
+                return (
+                  <button
+                    key={sName}
+                    onClick={() => {
+                      if (!isActive) {
+                        setSearchParams({ collectionId, sheetName: sName })
+                      }
+                    }}
+                    style={{
+                      background: isActive ? '#1e1e1e' : 'transparent',
+                      color: isActive ? '#8be8d8' : '#777777',
+                      border: `1px solid ${isActive ? '#2e2e2e' : 'transparent'}`,
+                      padding: '4px 12px',
+                      borderRadius: 12,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    {sName}
+                    {!isActive && count > 0 && (
+                      <span style={{ background: '#6be2c7', color: '#111111', padding: '0 6px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-            {availableGroupKeys.length > 0 && (
-              <div className="ac-grouping-row">
-                <span className="ac-grouping-label">Group by:</span>
-                {availableGroupKeys.map(key => {
-                  const isActive = groupKeys.includes(key)
-                  return (
-                    <button key={key} className={`ac-group-chip ${isActive ? 'ac-chip-on' : ''}`} onClick={() => toggleGroupKey(key)}>
-                      {isActive && <span className="ac-chip-order">{groupKeys.indexOf(key) + 1}</span>}
-                      {key}
-                    </button>
-                  )
-                })}
-                {groupKeys.length > 0 && (
-                  <button className="ac-group-chip ac-chip-clear" onClick={() => setGroupKeys([])}><Icon name="close" size={11} /> Clear</button>
+          </div>
+
+          {/* ── Sticky Top Section ── */}
+          <div className="ac-sticky-top-section" style={{ position: 'sticky', top: 0, zIndex: 30, background: '#111111', borderBottom: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', paddingBottom: 10, paddingTop: 10 }}>          {/* Controls Bar */}
+            <div className="ac-controls" style={{ padding: '0 22px' }}>
+              <div className="ac-search">
+                <Icon name="search" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search by loan number or customer name..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button className="ac-search-clear" onClick={() => setSearch('')}><Icon name="close" size={13} /></button>
                 )}
               </div>
-            )}
-          </div>
+              {availableGroupKeys.length > 0 && (
+                <div className="ac-grouping-row">
+                  <span className="ac-grouping-label">Group by:</span>
+                  {availableGroupKeys.map(key => {
+                    const isActive = groupKeys.includes(key)
+                    return (
+                      <button key={key} className={`ac-group-chip ${isActive ? 'ac-chip-on' : ''}`} onClick={() => toggleGroupKey(key)}>
+                        {isActive && <span className="ac-chip-order">{groupKeys.indexOf(key) + 1}</span>}
+                        {key}
+                      </button>
+                    )
+                  })}
+                  {groupKeys.length > 0 && (
+                    <button className="ac-group-chip ac-chip-clear" onClick={() => setGroupKeys([])}><Icon name="close" size={11} /> Clear</button>
+                  )}
+                </div>
+              )}
+            </div>
 
-        </div>
+          </div>
         </div>
 
         {error && <div className="fos-error ac-error">{error}</div>}
@@ -1684,10 +1728,10 @@ export function Cases() {
               <div className="ac-case-list">
                 {groupKeys.length === 0
                   ? filteredCases.map((c, i) => (
-                    <CaseRow key={String(c._id)} caseData={c} index={i} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} isSelected={selectedCases.has(String(c._id))} onToggleSelect={handleToggleSelect} />
+                    <CaseRow key={String(c._id)} caseData={c} index={i} availableTags={availableTags} sheetColumnDefs={sheetColumnDefs} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} isSelected={selectedCases.has(String(c._id))} onToggleSelect={handleToggleSelect} />
                   ))
                   : (Array.isArray(treeData) ? treeData : []).map((node, i) => (
-                    <GroupNode key={node.isGroup ? `root-${node.label}-${i}` : String(node._id)} node={node} depth={0} availableTags={availableTags} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} caseIndexMap={caseIndexMap} selectedCases={selectedCases} onToggleSelect={handleToggleSelect} onToggleGroupSelect={handleToggleGroupSelect} />
+                    <GroupNode key={node.isGroup ? `root-${node.label}-${i}` : String(node._id)} node={node} depth={0} availableTags={availableTags} sheetColumnDefs={sheetColumnDefs} masterMode={masterMode} testMode={testMode} onUpdate={handleCaseUpdate} caseIndexMap={caseIndexMap} selectedCases={selectedCases} onToggleSelect={handleToggleSelect} onToggleGroupSelect={handleToggleGroupSelect} />
                   ))}
               </div>
             </div>

@@ -6,7 +6,7 @@ import { Collection } from '../models/Collection.js'
 import { Case } from '../models/Case.js'
 import { User } from '../models/User.js'
 import { upload, tempDir, collectionsDir } from '../utils/uploadConfig.js'
-import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, filterCasesByFosPermission, pushNewDefaultTagsToUsers } from '../utils/helpers.js'
+import { autoEnablePermissions, getDistinctFosNames, getEmployeeIdFromReq, filterCasesByFosPermission, pushNewDefaultTagsToUsers, parseDateString } from '../utils/helpers.js'
 import { generateExcelForCollection, generateExcelForAdmin } from './fos.js'
 import { autoTagColumnsWithAI } from '../utils/aiTagging.js'
 import { TAGS } from '../utils/constants.js'
@@ -304,10 +304,11 @@ router.post('/import', async (req, res) => {
 })
 
 router.post('/:id/generate', async (req, res) => {
-  const { tempId, standardColumns, mapping, newCaseIds = [], sheetNames, isNewWorkbook, isNewSheet } = req.body
-  const targetSheets = sheetNames || []
-  if (!standardColumns?.length || !mapping?.length || targetSheets.length === 0 || !targetSheets[0]) {
-    return res.status(400).json({ message: 'standardColumns, mapping, and at least one sheetName are required.' })
+  const { tempId, sheetMappings, newCaseIds = [], isNewWorkbook, isNewSheet } = req.body
+  const targetSheets = sheetMappings ? Object.keys(sheetMappings) : []
+  
+  if (!sheetMappings || targetSheets.length === 0) {
+    return res.status(400).json({ message: 'sheetMappings is required and must contain at least one sheet.' })
   }
 
   const collection = await Collection.findById(req.params.id)
@@ -321,28 +322,33 @@ router.post('/:id/generate', async (req, res) => {
     await createBackup(req.params.id, `Before column mapping generation for ${targetSheets.join(', ')}`, 'auto', user?._id)
   }
 
-  const finalMapping = []
-  const customUpdates = {}
-  for (const m of mapping) {
-    if (m.customText != null) {
-      const val = m.isCustomDate && m.customText ? new Date(m.customText) : m.customText
-      customUpdates[`rawData.${m.standardLabel}`] = val
-      finalMapping.push({ standardLabel: m.standardLabel, sourceColumn: m.standardLabel, customText: val })
-    } else {
-      finalMapping.push({ standardLabel: m.standardLabel, sourceColumn: m.sourceColumn })
-    }
-  }
-
-  if (Object.keys(customUpdates).length > 0 && newCaseIds.length > 0) {
-    await Case.updateMany(
-      { _id: { $in: newCaseIds } },
-      { $set: customUpdates }
-    )
-  }
-
   const oldStandardColumnsMap = {}
-  
+  const allCustomUpdates = {} // { [sheetName]: customUpdates }
+  const allFinalMappings = {} // { [sheetName]: finalMapping }
+
   for (const sName of targetSheets) {
+    const { standardColumns, mapping } = sheetMappings[sName]
+    if (!standardColumns?.length || !mapping?.length) {
+      return res.status(400).json({ message: `standardColumns and mapping are required for sheet ${sName}.` })
+    }
+
+    const finalMapping = []
+    const customUpdates = {}
+    for (const m of mapping) {
+      if (m.customText != null) {
+        let val = m.customText
+        if (m.isCustomDate && m.customText) {
+          val = parseDateString(m.customText)
+        }
+        customUpdates[`rawData.${m.standardLabel}`] = val
+        finalMapping.push({ standardLabel: m.standardLabel, sourceColumn: m.standardLabel, customText: val })
+      } else {
+        finalMapping.push({ standardLabel: m.standardLabel, sourceColumn: m.sourceColumn })
+      }
+    }
+    allCustomUpdates[sName] = customUpdates
+    allFinalMappings[sName] = finalMapping
+
     let sheetIdx = collection.sheets.findIndex(s => s.name === sName)
     
     const finalStandardColumns = standardColumns.map(sc => {
@@ -354,7 +360,16 @@ router.post('/:id/generate', async (req, res) => {
       return { ...sc, tag };
     });
 
-    if (isNewWorkbook || isNewSheet) {
+    // AI tagging runs when:
+    //  • it's a brand-new workbook (isNewWorkbook), OR
+    //  • the sheet doesn't exist yet in the collection (sheetIdx === -1), OR
+    //  • the sheet was just scaffolded by the import route with no columns yet
+    //    (sheetIdx !== -1 but standardColumns is empty — happens when a new sheet
+    //     is added to an existing workbook via the "existing workbook" upload form)
+    const existingStandardColumns = sheetIdx !== -1 ? collection.sheets[sheetIdx].standardColumns : []
+    const isFirstTimeMapping = existingStandardColumns.length === 0
+
+    if (isNewWorkbook || sheetIdx === -1 || isFirstTimeMapping) {
       const untaggedCols = finalStandardColumns.filter(sc => !sc.tag).map(sc => sc.label);
       if (untaggedCols.length > 0) {
         const sampleCase = await Case.findOne({ collectionId: req.params.id, sheetName: sName }).lean();
@@ -384,6 +399,19 @@ router.post('/:id/generate', async (req, res) => {
       collection.sheets[sheetIdx].set('lastMapping', finalMapping)
     } else {
       collection.sheets.push({ name: sName, standardColumns: finalStandardColumns, lastMapping: finalMapping })
+    }
+  }
+
+  // Apply custom updates strictly per-sheet
+  if (newCaseIds.length > 0) {
+    for (const sName of targetSheets) {
+      const customUpdates = allCustomUpdates[sName]
+      if (Object.keys(customUpdates).length > 0) {
+        await Case.updateMany(
+          { _id: { $in: newCaseIds }, sheetName: sName },
+          { $set: customUpdates }
+        )
+      }
     }
   }
 
@@ -606,7 +634,7 @@ router.post('/:id/bulk-update', async (req, res) => {
     }
     if (!match) continue
 
-    const finalValue = valueType === 'date' && newValue ? new Date(newValue) : (newValue ?? '')
+    const finalValue = valueType === 'date' && newValue ? parseDateString(newValue) : (newValue ?? '')
     const oldVal = c.rawData?.[destCol] ?? ''
 
     const normalizeVal = (val) => {
@@ -716,7 +744,7 @@ router.post('/:id/bulk-update-preview', async (req, res) => {
     }
     if (!match) continue
 
-    const finalValue = valueType === 'date' && newValue ? new Date(newValue) : (newValue ?? '')
+    const finalValue = valueType === 'date' && newValue ? parseDateString(newValue) : (newValue ?? '')
     const oldVal = c.rawData?.[destCol] ?? ''
 
     const normalizeVal = (val) => {
@@ -782,7 +810,7 @@ router.post('/:id/bulk-update-count', async (req, res) => {
     }
     if (match) {
       if (targetColumn) {
-        const finalValue = valueType === 'date' && newValue ? new Date(newValue) : (newValue ?? '')
+        const finalValue = valueType === 'date' && newValue ? parseDateString(newValue) : (newValue ?? '')
         const oldVal = c.rawData?.[destCol] ?? ''
 
         const normalizeVal = (val) => {

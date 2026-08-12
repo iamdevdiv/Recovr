@@ -1,5 +1,48 @@
 import React from 'react'
 
+export function parseDateString(val) {
+  if (val instanceof Date) return val
+  if (!val || String(val).trim().toLowerCase() === 'none') return new Date(NaN)
+  
+  let str = String(val).trim()
+  
+  // 1. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmYMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:\s+(.*))?$/)
+  if (dmYMatch) {
+    const day = parseInt(dmYMatch[1], 10)
+    const month = parseInt(dmYMatch[2], 10) - 1 
+    const year = parseInt(dmYMatch[3], 10)
+    const timePart = dmYMatch[4]
+    
+    if (timePart) {
+      str = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timePart}`
+      return new Date(str)
+    }
+    return new Date(year, month, day)
+  }
+  
+  // 2. DD MMM or DD MMM YYYY (with optional hyphens and time)
+  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+  const dMmYMatch = str.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})(?:[\s-]+(\d{4}))?(?:\s+(.*))?$/)
+  if (dMmYMatch) {
+    const day = parseInt(dMmYMatch[1], 10)
+    const monthStr = dMmYMatch[2].toLowerCase().substring(0, 3)
+    const month = monthNames.indexOf(monthStr)
+    
+    if (month !== -1) {
+      const year = dMmYMatch[3] ? parseInt(dMmYMatch[3], 10) : new Date().getFullYear()
+      const timePart = dMmYMatch[4]
+      
+      if (timePart) {
+        return new Date(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timePart}`)
+      }
+      return new Date(year, month, day)
+    }
+  }
+  
+  return new Date(str)
+}
+
 export function Icon({ name, size = 18, className = '', style }) {
   const paths = {
     grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
@@ -203,7 +246,7 @@ export function formatDetailValue(tag, rawVal) {
   const lowerTag = tag.toLowerCase()
 
   if (lowerTag.includes('date') || lowerTag.includes('time')) {
-    const d = new Date(val)
+    const d = parseDateString(val)
     if (!isNaN(d) && val.length >= 8) {
       return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d)
     }
